@@ -3,9 +3,10 @@
 
 A purifier's lock run points COURSIER_CACHE at an empty directory, runs the
 build tool, and turns every file the tool downloaded into an entry
-{"path", "url", "hash"}: the file's place in the cache, the URL coursier
-downloaded it from, and its SRI sha256 hash. The Nix side fetches each URL
-and places the file at its path, which rebuilds the cache.
+{"path", "url", "mirrors", "hash"}: the file's place in the cache, the URL
+coursier downloaded it from, no fallback URLs, and its SRI sha256 hash. The Nix side fetches each URL
+and places the file at its path, which rebuilds the cache. Version listings
+the build needs become inline entries {"path", "contents"} instead.
 
 The path rule is the one coursier uses (coursier.paths.CachePath.localFile),
 as sbt-nix-backend's CachePaths.scala implements it. The scala-cli and Mill
@@ -130,13 +131,26 @@ def sri_sha256(file):
 def entries(cache_dir, paths=None):
     """The lockfile entries of a cache, sorted by path.
 
-    Each entry is a dict with `path`, `url` and `hash`. `paths` limits the
-    entries to those cache-relative paths; the default is every downloaded
-    file.
+    Each entry is a dict with `path`, `url`, `mirrors` and `hash`. Coursier
+    downloads each file from one URL, so `mirrors`, the fallback URLs of the
+    shared lockfile format, is empty. `paths` limits the entries to those
+    cache-relative paths; the default is every downloaded file.
     """
     cache_dir = Path(cache_dir)
     selected = downloaded_files(cache_dir) if paths is None else sorted(paths)
-    return [{"path": p, "url": url_of(p), "hash": sri_sha256(cache_dir / p)} for p in selected]
+    return [{"path": p, "url": url_of(p), "mirrors": [], "hash": sri_sha256(cache_dir / p)} for p in selected]
+
+
+def inline_entries(cache_dir, paths):
+    """Inline lockfile entries for `paths` of a cache, sorted by path.
+
+    Each entry is a dict with `path` and `contents`, the file's text. A lock
+    run keeps version listings this way when the offline build needs them:
+    the listing's URL serves new content once a version is published, so
+    the lockfile records the listing the lock run read rather than a hash.
+    """
+    cache_dir = Path(cache_dir)
+    return [{"path": p, "contents": (cache_dir / p).read_text(encoding="utf-8")} for p in sorted(paths)]
 
 
 def java_proxy_properties(environ=None):

@@ -2,8 +2,30 @@
 # SPDX-License-Identifier: MIT
 #
 # Re-locks the test fixtures with the scala-cli-purifier command of this
-# checkout. Run from the repository root; it needs the network.
+# checkout: the fixtures named as arguments, or all of them. Run from the
+# repository root; it needs the network.
+#
+# The native scala-cli writes Scala.js linker output and publications to
+# /tmp. On a machine whose /tmp is read-only, point
+# SCALA_CLI_PURIFIER_SCALA_CLI at a launcher of the JVM build of the same
+# scala-cli version (org.virtuslab.scala-cli:cli_3), which reads
+# java.io.tmpdir.
 set -euo pipefail
 cli=$(nix build --no-link --print-out-paths '.#cli')/bin/scala-cli-purifier
-(cd tests/fixtures/hello && "$cli" lock --test)
-(cd tests/fixtures/script && "$cli" lock)
+
+lock() {
+  local fixture=$1
+  shift
+  echo "== $fixture" >&2
+  (cd "tests/fixtures/$fixture" && "$cli" lock "$@")
+}
+
+fixtures=("$@")
+[ ${#fixtures[@]} -gt 0 ] || fixtures=(hello script sources url js native library)
+for fixture in "${fixtures[@]}"; do
+  case $fixture in
+    hello | js | native) lock "$fixture" --test ;;
+    library) lock "$fixture" --publish ;;
+    *) lock "$fixture" ;;
+  esac
+done

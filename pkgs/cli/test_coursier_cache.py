@@ -82,10 +82,23 @@ class EntriesTests(unittest.TestCase):
                     {
                         "path": "https/repo1.maven.org/maven2/a/b/1.0/b-1.0.jar",
                         "url": "https://repo1.maven.org/maven2/a/b/1.0/b-1.0.jar",
+                        "mirrors": [],
                         # The SRI sha256 of the empty file.
                         "hash": "sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
                     }
                 ],
+            )
+
+
+    def test_inline_entries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            listing = cache / "https/repo1.maven.org/maven2/a/b/maven-metadata.xml"
+            listing.parent.mkdir(parents=True)
+            listing.write_text("<metadata/>\n")
+            self.assertEqual(
+                cc.inline_entries(cache, ["https/repo1.maven.org/maven2/a/b/maven-metadata.xml"]),
+                [{"path": "https/repo1.maven.org/maven2/a/b/maven-metadata.xml", "contents": "<metadata/>\n"}],
             )
 
 

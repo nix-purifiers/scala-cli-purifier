@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "scalaCliVersion": "1.18.0",
+  "javaVersion": "21.0.12.1",
+  "name": "library",
+  "platform": "JVM",
+  "arguments": [
+    "."
+  ],
+  "test": false,
+  "publish": true,
+  "publication": [
+    {
+      "name": "greeting_3-javadoc.jar",
+      "path": "io/github/nix-purifiers/example/greeting_3/1.0.0/greeting_3-1.0.0-javadoc.jar"
+    },
+    {
+      "name": "greeting_3-sources.jar",
+      "path": "io/github/nix-purifiers/example/greeting_3/1.0.0/greeting_3-1.0.0-sources.jar"
+    },
+    {
+      "name": "greeting_3.jar",
+      "path": "io/github/nix-purifiers/example/greeting_3/1.0.0/greeting_3-1.0.0.jar"
+    },
+    {
+      "name": "greeting_3.pom",
+      "path": "io/github/nix-purifiers/example/greeting_3/1.0.0/greeting_3-1.0.0.pom"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.12.1/jackson-annotations-2.12.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.12.1/jackson-annotations-2.12.1.pom",
+      "mirrors": [],
+      "hash": "sha256-PgxXIfsmvnMszfE9scWd/u4KbbJp68x1B+rRx2OmEIs="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.15.1/jackson-annotations-2.15.1.jar",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.15.1/jackson-annotations-2.15.1.jar",
+      "mirrors": [],
+      "hash": "sha256-NEwbND2YGdXdQ5XyUHl3uRuyRjd4zy73sNAXJOyP+rI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.15.1/jackson-annotations-2.15.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.15.1/jackson-annotations-2.15.1.pom",
+      "mirrors": [],
+      "hash": "sha256-DKy1qFN8cteOQSWdbX5PCf/g96+ehsWIU21/WOg34uc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.15.1/jackson-core-2.15.1.jar",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.15.1/jackson-core-2.15.1.jar",
+      "mirrors": [],
+      "hash": "sha256-nZhDGcyXboXEn0DakoAhrNLXc+JZqf+fgy7c2saSDu0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.15.1/jackson-core-2.15.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.15.1/jackson-core-2.15.1.pom",
+      "mirrors": [],
+      "hash": "sha256-fHKqaK699Qz1EBA2TYWJa6gYjRX79O55b4oGFNYTtoY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.15.1/jackson-databind-2.15.1.jar",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.15.1/jackson-databind-2.15.1.jar",
+      "mirrors": [],
+      "hash": "sha256-wfA0fOJpbJT1MdCVzZ7yLmSOwJDpscPe4Xk4sHod8XY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.15.1/jackson-databind-2.15.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.15.1/jackson-databind-2.15.1.pom",
+      "mirrors": [],
+      "hash": "sha256-7cmvJRy1QoPCy0FZ3bM4CZJ/DIkS7UIeKQLC064GIYQ="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/dataformat/jackson-dataformat-yaml/2.15.1/jackson-dataformat-yaml-2.15.1.jar",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/dataformat/jackson-dataformat-yaml/2.15.1/jackson-dataformat-yaml-2.15.1.jar",
+      "mirrors": [],
+      "hash": "sha256-iX8bNQmt4OcPFJi4POQQyEKLkTsSrkp8GmsLIkOLsYI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/dataformat/jackson-dataformat-yaml/2.15.1/jackson-dataformat-yaml-2.15.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/dataformat/jackson-dataformat-yaml/2.15.1/jackson-dataformat-yaml-2.15.1.pom",
+      "mirrors": [],
+      "hash": "sha256-qggBh9FCfkU/J3YD+QqlLhJc+4Y5VORnbKPD3N3ngjU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/dataformat/jackson-dataformats-text/2.15.1/jackson-dataformats-text-2.15.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/dataformat/jackson-dataformats-text/2.15.1/jackson-dataformats-text-2.15.1.pom",
+      "mirrors": [],
+      "hash": "sha256-xLCopnocY3IgeJlhd5bYafE/UerrGsN/wHqcpxPaQjU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.12.1/jackson-datatype-jsr310-2.12.1.jar",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.12.1/jackson-datatype-jsr310-2.12.1.jar",
+      "mirrors": [],
+      "hash": "sha256-sbNEBcmAdmzObCg/3FA5onTqO5EfCXtoB8IeEhOxApI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.12.1/jackson-datatype-jsr310-2.12.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.12.1/jackson-datatype-jsr310-2.12.1.pom",
+      "mirrors": [],
+      "hash": "sha256-9E5NpIdrtjPOvbSNFfPX1tT4s9fcWv281DQxQrbFxjE="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-base/2.12.1/jackson-base-2.12.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-base/2.12.1/jackson-base-2.12.1.pom",
+      "mirrors": [],
+      "hash": "sha256-k6jHh1WjGXdQgCHbs4g8DddAoGuxxn/0lC4JbBMkGfU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-base/2.15.1/jackson-base-2.15.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-base/2.15.1/jackson-base-2.15.1.pom",
+      "mirrors": [],
+      "hash": "sha256-qdc9e+y/QhF0Vow4KrFik2EYD6lvwEHCzUokX2ljsJ0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-bom/2.12.1/jackson-bom-2.12.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-bom/2.12.1/jackson-bom-2.12.1.pom",
+      "mirrors": [],
+      "hash": "sha256-CDsgpCMbsFFtbhoIJIyfvORzWDoSKgf9Lg6t7/aQijg="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-bom/2.15.1/jackson-bom-2.15.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-bom/2.15.1/jackson-bom-2.15.1.pom",
+      "mirrors": [],
+      "hash": "sha256-xRdH0RSll5SfgRQHJ9nmzWPj9DkI82R++qcLGelNqk0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-parent/2.12/jackson-parent-2.12.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-parent/2.12/jackson-parent-2.12.pom",
+      "mirrors": [],
+      "hash": "sha256-YqocFnmt4J8XPb8bbDLTXFXnWAAjj9XkjxOqQzfAh1s="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/jackson-parent/2.15/jackson-parent-2.15.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/jackson-parent/2.15/jackson-parent-2.15.pom",
+      "mirrors": [],
+      "hash": "sha256-bN+XvGbzifY+NoUNL1UtEhZoj45aWHJ9P2qY7fhnXN4="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/module/jackson-modules-java8/2.12.1/jackson-modules-java8-2.12.1.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/jackson/module/jackson-modules-java8/2.12.1/jackson-modules-java8-2.12.1.pom",
+      "mirrors": [],
+      "hash": "sha256-xnsditvQbvzayO7571aXh/I244abgfhv//IF7htMtGc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/oss-parent/41/oss-parent-41.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/oss-parent/41/oss-parent-41.pom",
+      "mirrors": [],
+      "hash": "sha256-r2UPpN1AC8V2kyC87wjtk4E/NJyr6CE9RprK+72UXYo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/fasterxml/oss-parent/50/oss-parent-50.pom",
+      "url": "https://repo1.maven.org/maven2/com/fasterxml/oss-parent/50/oss-parent-50.pom",
+      "mirrors": [],
+      "hash": "sha256-9dpV3XuI+xcMRoAdF3dKZS+y9FgftbHQpfyGqhgrhXc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.62.2/flexmark-ext-anchorlink-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.62.2/flexmark-ext-anchorlink-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-mW8z71idCqhR6Lw+DioPr/GwRHw1qc0CrJvsTEANepQ="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.62.2/flexmark-ext-anchorlink-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-anchorlink/0.62.2/flexmark-ext-anchorlink-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-Y0eX+RzOiGvSJikqh1oL9TQPeuzVdSB4JT/+7rxjsG4="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.62.2/flexmark-ext-autolink-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.62.2/flexmark-ext-autolink-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-Un1KKUd419zH8wnUB+ugUmgWztLWkcUTCGBrKGq/ZXM="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.62.2/flexmark-ext-autolink-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-autolink/0.62.2/flexmark-ext-autolink-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-hz3rNRMJPHYgyQoicePvnmXrhDcZ5YCuGuV93dtR6Ig="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.62.2/flexmark-ext-emoji-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.62.2/flexmark-ext-emoji-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-3N78LajsdCq4FgUnbr8wCWJhNJnBGW+4fggr12vGF4k="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.62.2/flexmark-ext-emoji-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-emoji/0.62.2/flexmark-ext-emoji-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-spqmURUeXMUFyJ1rtvC+S4MII/6TtOj0IDe9FVwEGdk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.62.2/flexmark-ext-gfm-strikethrough-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.62.2/flexmark-ext-gfm-strikethrough-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-pGp8Kr1ejy1mVbfocECAU+C+st0UpazsTysY9uWx8M8="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.62.2/flexmark-ext-gfm-strikethrough-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-strikethrough/0.62.2/flexmark-ext-gfm-strikethrough-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-3vRWieZ559gqrT33wt3u6LEG1Y2UmTBOxUov6CMECwY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.62.2/flexmark-ext-gfm-tasklist-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.62.2/flexmark-ext-gfm-tasklist-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-uXyz3229OKMrwfkKfIH1sRLYo5CYTnpfn/99g/bi0sk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.62.2/flexmark-ext-gfm-tasklist-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-gfm-tasklist/0.62.2/flexmark-ext-gfm-tasklist-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-GsqIe4Q9ZRanD6s6Zq9SAKXzXgnOuY8sqXupNdrQHxw="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.62.2/flexmark-ext-ins-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.62.2/flexmark-ext-ins-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-FdIX749NdwLaTHwRqf0ZLuw9Z+mrVIY0TflVhOczNvo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.62.2/flexmark-ext-ins-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-ins/0.62.2/flexmark-ext-ins-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-XCPDy0RscMn4fGO/Za3C/oZVsyn7XAiPGCj6KF1ubMA="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.62.2/flexmark-ext-superscript-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.62.2/flexmark-ext-superscript-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-xg/hLDnUj1SO8nulUiFIPXbU+/wUdvSQNBStWqzSOV8="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.62.2/flexmark-ext-superscript-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-superscript/0.62.2/flexmark-ext-superscript-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-M60WgBlHgJtJR954vraIzeG7rMduLxcO6zSu3HBfeCs="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.62.2/flexmark-ext-tables-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.62.2/flexmark-ext-tables-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-dhlD2UAgt4rCfImEDZl5Mo/EyxjLA67SPuO5dnv5JLU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.62.2/flexmark-ext-tables-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-tables/0.62.2/flexmark-ext-tables-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-oIHrKbm+jCVK21Z8aUCOMwRgppSYohLKtCde2lexVWk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.62.2/flexmark-ext-wikilink-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.62.2/flexmark-ext-wikilink-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-NwZ2EZ4NuHRT/gDYI8W0AXKYDLJIkepP7az4jv+QnaM="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.62.2/flexmark-ext-wikilink-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-wikilink/0.62.2/flexmark-ext-wikilink-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-fHki5n1H7ei/RNfcX3BDSIaGvacPHylHECf6K1rj08U="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.62.2/flexmark-ext-yaml-front-matter-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.62.2/flexmark-ext-yaml-front-matter-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-1ZCWlg1sgLKbZNTZ2sk2ssEh0LEcPgCz38wTKdvBE7E="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.62.2/flexmark-ext-yaml-front-matter-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-ext-yaml-front-matter/0.62.2/flexmark-ext-yaml-front-matter-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-6xtg36voYOcQ0K6pWOuV0DUYtETrOS2hG0EWyDAyi+o="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-java/0.62.2/flexmark-java-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-java/0.62.2/flexmark-java-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-JI2xxPl5/ae/IeSmIhQoU2oZGjgSjbStjcbQiNpPXCI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.62.2/flexmark-jira-converter-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.62.2/flexmark-jira-converter-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-5GT7gT10dxLoh4TtdFn54bEwD7U/jl3P7pAiCBEnFRI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.62.2/flexmark-jira-converter-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-jira-converter/0.62.2/flexmark-jira-converter-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-x7oy6bYnvIubOKs1Ei5Ens3CNgmFEhv1sZcvriHyUos="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.62.2/flexmark-util-ast-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.62.2/flexmark-util-ast-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-diwcK5zsDN9T/h+hBoBhJlpE97wz5nLBP4OKaXGJ5DQ="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.62.2/flexmark-util-ast-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-ast/0.62.2/flexmark-util-ast-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-ztjEJKYYgh6k/qwCNbp+L59F74wuoU4nMg6RK61IOLo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.62.2/flexmark-util-builder-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.62.2/flexmark-util-builder-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-HzF3q/UbTibiu6mU30kCs5LHM24W3+56ssSS4GhdUvU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.62.2/flexmark-util-builder-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-builder/0.62.2/flexmark-util-builder-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-OixyYUNpkLAKgBVo0U0+vU9j89R3FLTkMp2csrKu6GM="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.62.2/flexmark-util-collection-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.62.2/flexmark-util-collection-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-WfNQ8GSus9DgHpf7dz+5cB42Bdnbem6xK84GhkErOAk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.62.2/flexmark-util-collection-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-collection/0.62.2/flexmark-util-collection-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-IStq9gR0OHAvkfO+/SU3Cl5+YXUCc3w4Oj4MKaZPTJc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.62.2/flexmark-util-data-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.62.2/flexmark-util-data-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-TsQmg/iuUe6CJ/NEOlTvDXDQdrWTiQq6wkZI2T7sw5w="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.62.2/flexmark-util-data-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-data/0.62.2/flexmark-util-data-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-OMthVXCFsWtDvh/LiMXFq4dHVFK38JFaai34Ym4kIog="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.62.2/flexmark-util-dependency-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.62.2/flexmark-util-dependency-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-WC0B0vP0Kp6pZlUbNU7b1sGd/HC+dPRwvIR9slXeE2c="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.62.2/flexmark-util-dependency-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-dependency/0.62.2/flexmark-util-dependency-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-2B9z+rK9QatA1SecxlK7DLbE8s/mJiQbb0FmA6Bsz9Y="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.62.2/flexmark-util-format-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.62.2/flexmark-util-format-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-eM7S5njnRqeJSM6Uaf6V7HjCLQhbAlTM5/gmtAIxCH8="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.62.2/flexmark-util-format-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-format/0.62.2/flexmark-util-format-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-8YMOlDSONEeOfPdZ29G0BPgV1030BnB67r0TDBq3+kk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.62.2/flexmark-util-html-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.62.2/flexmark-util-html-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-N3u/QHvH17CRranroWsFi35/pg7Uo+48WExdUU4Vl4Y="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.62.2/flexmark-util-html-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-html/0.62.2/flexmark-util-html-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-NwVR+wTYf8p4N9TE60mjc6gPGx0OeZ/lSCHEKy/KpyY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.62.2/flexmark-util-misc-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.62.2/flexmark-util-misc-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-Bs7AaYYz+HXmaLQB26sgjg9WpdVflWqZMgnvrmvkXaY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.62.2/flexmark-util-misc-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-misc/0.62.2/flexmark-util-misc-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-veQTMX8vKAX0DWXosXJwrqnA6Hobj0z1bBViVlF8xnw="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.62.2/flexmark-util-options-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.62.2/flexmark-util-options-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-omVzwf7bSU0v8G0o24UtMW9Nb8O0PtIkevus10PZrlA="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.62.2/flexmark-util-options-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-options/0.62.2/flexmark-util-options-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-FprJcoqUc1Z92jU5Yow51tVbWEtjLoowsqc1vxpfiPk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.62.2/flexmark-util-sequence-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.62.2/flexmark-util-sequence-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-ZoSgBIrQiEUkGaKHGmUW5/0wE3AMs0pxzKT58xoDIMQ="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.62.2/flexmark-util-sequence-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-sequence/0.62.2/flexmark-util-sequence-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-Q3HDyektRiXKtTvV2Uod9OOQtU3h/lYQEsaCSwuDSTg="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.62.2/flexmark-util-visitor-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.62.2/flexmark-util-visitor-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-cZe/z97KhZwtotd18yL5i5/XIsuZJ2CpZ4ukxwbqyYI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.62.2/flexmark-util-visitor-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util-visitor/0.62.2/flexmark-util-visitor-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-8atRhmFT/p6gm+Ycy23CKyzosE/jY5qRlPBEH+K5o8Q="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.62.2/flexmark-util-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.62.2/flexmark-util-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-Nrtyo7V6mf91EZDLU4rVU0mb1JvCR2PGQtWMYenVsXE="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.62.2/flexmark-util-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark-util/0.62.2/flexmark-util-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-g2csoRlSXfWYmUAL3kXRmWSwWqNL6XZpe2T9SNtqPRo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.62.2/flexmark-0.62.2.jar",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.62.2/flexmark-0.62.2.jar",
+      "mirrors": [],
+      "hash": "sha256-XrwXB7hsIscKDvfFt7OKk2HIC4m2v9Dhe+OasO0ycqY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.62.2/flexmark-0.62.2.pom",
+      "url": "https://repo1.maven.org/maven2/com/vladsch/flexmark/flexmark/0.62.2/flexmark-0.62.2.pom",
+      "mirrors": [],
+      "hash": "sha256-OOToJG9JYj9niKsYjSUA/tq8wjXUEe0/JdlN4Yv5zsg="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar",
+      "url": "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar",
+      "mirrors": [],
+      "hash": "sha256-NO0eHyf6iWvKUNvE6ZzzcylnzsOHp6DV40hsCWc/6MY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.pom",
+      "url": "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.pom",
+      "mirrors": [],
+      "hash": "sha256-4E4llRUB3yWtx7Hc22xTNzyUiXuE0+FJISknY+4Hrj0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/nl/big-o/liqp/0.8.2/liqp-0.8.2.jar",
+      "url": "https://repo1.maven.org/maven2/nl/big-o/liqp/0.8.2/liqp-0.8.2.jar",
+      "mirrors": [],
+      "hash": "sha256-qUjCZVjjH7RFtfGiVhxFGBNqXXQEbkqxK/tgEPawzFs="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/nl/big-o/liqp/0.8.2/liqp-0.8.2.pom",
+      "url": "https://repo1.maven.org/maven2/nl/big-o/liqp/0.8.2/liqp-0.8.2.pom",
+      "mirrors": [],
+      "hash": "sha256-hG2jkJjCC+hjFSPGKSjk3StM92htQoZ4quUAYO7wCbg="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/antlr/antlr4-master/4.7.2/antlr4-master-4.7.2.pom",
+      "url": "https://repo1.maven.org/maven2/org/antlr/antlr4-master/4.7.2/antlr4-master-4.7.2.pom",
+      "mirrors": [],
+      "hash": "sha256-upnLJdI5DzhoDHUChCoO4JWdHmQD4BPM/2mP1YVu6tE="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/antlr/antlr4-runtime/4.7.2/antlr4-runtime-4.7.2.jar",
+      "url": "https://repo1.maven.org/maven2/org/antlr/antlr4-runtime/4.7.2/antlr4-runtime-4.7.2.jar",
+      "mirrors": [],
+      "hash": "sha256-TFGLh9S9/4tEzYy8GvgW6US2Kj/luAt4FQHPH0dZu8Q="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/antlr/antlr4-runtime/4.7.2/antlr4-runtime-4.7.2.pom",
+      "url": "https://repo1.maven.org/maven2/org/antlr/antlr4-runtime/4.7.2/antlr4-runtime-4.7.2.pom",
+      "mirrors": [],
+      "hash": "sha256-3AnLqYwl08BuSuxRaIXUw68DBiulX0/mKD/JzxdqYPs="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jetbrains/annotations/15.0/annotations-15.0.jar",
+      "url": "https://repo1.maven.org/maven2/org/jetbrains/annotations/15.0/annotations-15.0.jar",
+      "mirrors": [],
+      "hash": "sha256-10WZzvKzY/2zzdMZhRWsoJDj6j6YsrpHPG5G8RTasnI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jetbrains/annotations/15.0/annotations-15.0.pom",
+      "url": "https://repo1.maven.org/maven2/org/jetbrains/annotations/15.0/annotations-15.0.pom",
+      "mirrors": [],
+      "hash": "sha256-ZyZnisB7SBteNdOu785Sa5X9GO3jPQ2Fyxxoi83w6EA="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-QtW74fVG3qJIuMkB2n3rmUP3YpA3lVKSPJdjSVu58XI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-1anShfk14FFVoYwAIVUlMuHHfjyxmIevh+gtkzOtJNc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-parent/3.25.1/jline-parent-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-parent/3.25.1/jline-parent-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-bUHuLZPDxLaweopaMZ5pwDH7yBWLEYz1uG57DTuyyyA="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-JjM6J13lAq3x3Z5upQqgtAIUEscUkN+e1eiKZIiG7ok="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-dih4cq9sX8mYSujz/GM04I7umt0/2mMfDH0U6qgQPDE="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-WMqdcZw3MgavFXde481fJoE26g0MTgCcPpam1GEtXGY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-0a3X7/u7B18MMfpSgm9HlmU+Zf9F1n86MQeK4Jl+bLY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-wPXXCQElXaZqlOWXeLJl0Z+TCDQleONMiPyS0bDGX+8="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-tmzpQTySv1Y5yfgyenKf4g0dYF0QMwjwR3f/k/B1e0Q="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jsoup/jsoup/1.17.2/jsoup-1.17.2.jar",
+      "url": "https://repo1.maven.org/maven2/org/jsoup/jsoup/1.17.2/jsoup-1.17.2.jar",
+      "mirrors": [],
+      "hash": "sha256-9gszs46desk+qqaKbHD3BruZA2SUsuKt0r/uEdCaxvU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jsoup/jsoup/1.17.2/jsoup-1.17.2.pom",
+      "url": "https://repo1.maven.org/maven2/org/jsoup/jsoup/1.17.2/jsoup-1.17.2.pom",
+      "mirrors": [],
+      "hash": "sha256-ejSdIXeQw3ML4wjO0eqe4yxOdPcgWOg8K2DloolU3Q0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/junit/junit-bom/5.9.2/junit-bom-5.9.2.pom",
+      "url": "https://repo1.maven.org/maven2/org/junit/junit-bom/5.9.2/junit-bom-5.9.2.pom",
+      "mirrors": [],
+      "hash": "sha256-LtB9ZYRRMfUzaoZHbJpAVrWdC1i5gVqzZ5uw82819wU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.jar",
+      "url": "https://repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.jar",
+      "mirrors": [],
+      "hash": "sha256-qAvgMPY4bxgRHK2RYcC2mDFXNSobWaWeYAIXLw0yHAQ="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.pom",
+      "url": "https://repo1.maven.org/maven2/org/nibor/autolink/autolink/0.6.0/autolink-0.6.0.pom",
+      "mirrors": [],
+      "hash": "sha256-kWdVZHo0zLNn4Rg00oOAGYyDSt/PZg4NmD43W49cKPI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.jar",
+      "mirrors": [],
+      "hash": "sha256-vxb4tp6Jytq1ULziZqBSeAr38esp3RwEw70BQRN1LBI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.pom",
+      "mirrors": [],
+      "hash": "sha256-SLs1Yi4BkpPFLIUKUo578cG6eYVi7XgpoLMLN/04JR0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.jar",
+      "mirrors": [],
+      "hash": "sha256-Q+DKFYPfGWbq8C8Pvdz7N4S5ld0Gv8kHIJNHdYzkt+M="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.pom",
+      "mirrors": [],
+      "hash": "sha256-zuhsbfVlOq9VQDZmkC/LsKqvQA6yz/sn8Jyl117HA7w="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-LMpl/bkuLMOTeGyuYbT3vLkDKtS+YfnOuuHcpymX5S8="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-HjP34s/Sl1cvDgvOFQZNocr+1Z0DbV6RXL1RyMJgTbU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-/gVsEKIXNT4UqmIHbSu9lX69guAvtEXKVUaujqnUDKo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-6GDdhZL/Pvwm7iP2WVhSU6xWCFVA2cEWkfjIKjKcxFY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-2VGErPzYFNouBRN45JYsZT9LRo9AhkUqtCevAwSCvTw="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-RVd6FeDwuYRYaK3StQr62W0chvXyFur1PC8sfQGtSQI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-tasty-inspector_3/3.3.4/scala3-tasty-inspector_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-tasty-inspector_3/3.3.4/scala3-tasty-inspector_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-jCie9OFV7fKCRaxEtmUr1JhWZkMWCjFxOmv9B3cnL9A="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-tasty-inspector_3/3.3.4/scala3-tasty-inspector_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-tasty-inspector_3/3.3.4/scala3-tasty-inspector_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-tLaJ3ADTDOzWdEjxTtDJn+NKaoBOPrGWX2RrmNWA0xo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scaladoc_3/3.3.4/scaladoc_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scaladoc_3/3.3.4/scaladoc_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-kqWTJCWQVhyP+eHbATockyyPw+ncd0G+QXETW9eP3XE="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scaladoc_3/3.3.4/scaladoc_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scaladoc_3/3.3.4/scaladoc_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-UwmfGE8x0eagus1V4m4yX8/CpY4P7xYt2oCsggScz/w="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-E9RGk9by044FlZVNESNMA3PW0OaJqBUbBoeMW2MdV9U="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-idL2ljHtav+V/BmVwgtKQZKcilb09zacmsgeWSl/ER0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.jar",
+      "mirrors": [],
+      "hash": "sha256-uYatHPzvFMir6qPniN8ovpFQrPv1h7X3qpLBsEPE+o0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.pom",
+      "mirrors": [],
+      "hash": "sha256-kVdZUWZeZ/ipGkWCmy9KFMrGenMnYK7Y0Qk8ZjU9muc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.jar",
+      "mirrors": [],
+      "hash": "sha256-EwKxomVoi3vDF5bUH5P75Ujl2vNupNyEjuCmsV/FOQQ="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.pom",
+      "mirrors": [],
+      "hash": "sha256-P74Xqsmf/Dd4nwJxomcEJgAz2l92dJevMzdBPCwlETo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/sonatype/oss/oss-parent/9/oss-parent-9.pom",
+      "url": "https://repo1.maven.org/maven2/org/sonatype/oss/oss-parent/9/oss-parent-9.pom",
+      "mirrors": [],
+      "hash": "sha256-+0AmX5glSCEv+C42LllzKyGH7G8NgBgohcFO8fmCgno="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/yaml/snakeyaml/2.0/snakeyaml-2.0.jar",
+      "url": "https://repo1.maven.org/maven2/org/yaml/snakeyaml/2.0/snakeyaml-2.0.jar",
+      "mirrors": [],
+      "hash": "sha256-iAydiW5LdKBsVJwVyklkUBZdaQn6FdfmYr7o9qZtevo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/yaml/snakeyaml/2.0/snakeyaml-2.0.pom",
+      "url": "https://repo1.maven.org/maven2/org/yaml/snakeyaml/2.0/snakeyaml-2.0.pom",
+      "mirrors": [],
+      "hash": "sha256-Q8dh+StUnIsI+5kggCU+SfCpg+VE7wZjwfT51o61JhY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/ua/co/k/strftime4j/1.0.5/strftime4j-1.0.5.jar",
+      "url": "https://repo1.maven.org/maven2/ua/co/k/strftime4j/1.0.5/strftime4j-1.0.5.jar",
+      "mirrors": [],
+      "hash": "sha256-juO+GBodOHHSsU4eFFy8SJGKu781liaP3Us9cpKwf8k="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/ua/co/k/strftime4j/1.0.5/strftime4j-1.0.5.pom",
+      "url": "https://repo1.maven.org/maven2/ua/co/k/strftime4j/1.0.5/strftime4j-1.0.5.pom",
+      "mirrors": [],
+      "hash": "sha256-31DQaCOk+Hw/1znr0XGPCbwSa7ggbf3oxHezqBbt9QA="
+    }
+  ]
+}

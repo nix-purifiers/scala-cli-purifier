@@ -29,14 +29,22 @@ let
       nonEmpty = if undotted == "" then "file" else undotted;
     in
     builtins.substring 0 200 nonEmpty;
+
+  artifactName = artifact: storeName (builtins.baseNameOf artifact.path);
 in
 assert
   lock.version == supportedVersion
   || throw "scala-cli-purifier: ${toString lockFile} has lock format version ${toString lock.version}; this library reads version ${toString supportedVersion}. Re-lock it with the scala-cli-purifier version that provides this library.";
 lock
 // {
-  inherit storeName;
+  inherit storeName artifactName;
 
-  # The fetch name of an artifact: its file name, made a valid store name.
-  artifactName = artifact: storeName (builtins.baseNameOf artifact.path);
+  # File entries { path, url, hash }, which are fetched.
+  fetched = builtins.filter (a: a ? url) lock.artifacts;
+
+  # The store file of an inline entry { path, contents }: the lock run kept
+  # the file's text, because the file's URL serves new content over time.
+  # builtins.toFile makes the same store path wherever it is evaluated.
+  inlineFile = artifact: builtins.toFile (artifactName artifact) artifact.contents;
+  inlined = builtins.filter (a: a ? contents) lock.artifacts;
 }

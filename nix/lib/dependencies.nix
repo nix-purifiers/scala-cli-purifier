@@ -14,13 +14,16 @@
 let
   lock = import ./lock.nix { inherit lockFile; };
   fetch = import ./fetch.nix { inherit lock fetchurl; };
+  line = path: target: "${path}\t${target}\n";
 in
 # The manifest goes to the builder as a file, since a large project locks
 # thousands of artifacts and the list would not fit in an environment
 # variable.
 runCommand "scala-cli-coursier-cache"
   {
-    manifest = lib.concatMapStrings (a: "${a.path}\t${fetch a}\n") lock.artifacts;
+    manifest =
+      lib.concatMapStrings (a: line a.path (fetch a)) lock.fetched
+      + lib.concatMapStrings (a: line a.path (lock.inlineFile a)) lock.inlined;
     passAsFile = [ "manifest" ];
     preferLocalBuild = true;
     allowSubstitutes = false;
