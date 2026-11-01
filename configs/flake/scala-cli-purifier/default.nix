@@ -16,24 +16,29 @@
       inherit (libOverlays) default;
     };
 
-    # The packages are the `default` entry of this flake's package overlay
-    # registry (pkg-overlays/): the package set applies it by default, and
-    # the flake exports it as `pkgOverlays` and as the plain
-    # `overlays.default`.
+    # The `default` entry of this flake's package overlay registry
+    # (pkg-overlays/) is applied to the package set by default, and the flake
+    # exports it as `pkgOverlays` and as the plain `overlays.default`. The
+    # flake publishes the derivations of the scope itself, below, so the
+    # export of the packages of the overlay is off.
     nixpkgs = {
-      packages.export.enabled = true;
+      packages.export.enabled = false;
     };
   };
 
   # `nix run github:nix-purifiers/scala-cli-purifier -- lock` locks the
   # scala-cli project in the current directory.
   perSystem =
-    { config, pkgs, ... }:
+    { pkgs, self', ... }:
     {
-      packages.default = config.packages.cli;
+      # The derivations of the scope pkgs.scala-cli-purifier, and the
+      # default package.
+      packages = lib.filterAttrs (_: lib.isDerivation) pkgs.scala-cli-purifier // {
+        default = self'.packages.cli;
+      };
       devShells.default = pkgs.mkShell {
         packages = [
-          config.packages.cli
+          self'.packages.cli
           pkgs.scala-cli
         ];
       };
