@@ -94,7 +94,10 @@ def read(path):
     try:
         data = json.loads(Path(path).read_text())
     except json.JSONDecodeError as e:
-        raise LockfileError(f"{path} is not valid JSON ({e}); run `scala-cli-purifier lock` to write it again") from None
+        raise LockfileError(
+            f"{path} is not a scala-cli-purifier lockfile: not valid JSON ({e}); "
+            "run `scala-cli-purifier lock` to write it again"
+        ) from None
     if not isinstance(data, dict) or "artifacts" not in data:
         raise LockfileError(f"{path} is not a scala-cli-purifier lockfile; run `scala-cli-purifier lock` to write it again")
     if data.get("checksum") != checksum(data):

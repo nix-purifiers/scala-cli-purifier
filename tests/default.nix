@@ -127,7 +127,9 @@ let
       inherit lockFile;
     };
   # The jar of upickle, which the hello program needs.
-  neededJar = lib.findFirst (a: lib.hasSuffix "/upickle_3-4.0.2.jar" a.path) (throw "the hello lockfile holds no upickle jar") helloLock.artifacts;
+  neededJar = lib.findFirst (
+    a: lib.hasSuffix "/upickle_3-4.0.2.jar" a.path
+  ) (throw "the hello lockfile holds no upickle jar") helloLock.artifacts;
 
   # The hello lockfile with a hash changed and the checksum left as it was.
   tamperedLock = builtins.toFile "tampered.lock.json" (
@@ -135,7 +137,8 @@ let
       helloLock
       // {
         artifacts = map (
-          a: if a == neededJar then a // { hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; } else a
+          a:
+          if a == neededJar then a // { hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; } else a
         ) helloLock.artifacts;
       }
     )
@@ -459,13 +462,10 @@ in
 
   # A package written for callPackage takes the builder through the scope,
   # as the Quickstart of the README shows.
-  consumer-package =
-    runs "consumer-package"
-      (withOverlay.callPackage (
-        { scala-cli-purifier }:
-        (scala-cli-purifier.buildScalaCliProject { src = ./fixtures/hello; }).packages.hello
-      ) { })
-      [ ''{"hello":"Nix World"}'' ];
+  consumer-package = runs "consumer-package" (withOverlay.callPackage (
+    { scala-cli-purifier }:
+    (scala-cli-purifier.buildScalaCliProject { src = ./fixtures/hello; }).packages.hello
+  ) { }) [ ''{"hello":"Nix World"}'' ];
 
   # buildScalaCliProject.override replaces what the builder takes from the
   # package set.
@@ -475,9 +475,10 @@ in
 
   # scala-cli-purifier.overrideScope replaces what the members of the scope
   # take, the builder among them.
-  scope-override = failsToEvaluate "scope-override" (
-    withOverlay.scala-cli-purifier.overrideScope (final: prev: { scala-cli = otherScalaCli; })
-  ).buildScalaCliProject;
+  scope-override =
+    failsToEvaluate "scope-override"
+      (withOverlay.scala-cli-purifier.overrideScope (final: prev: { scala-cli = otherScalaCli; }))
+      .buildScalaCliProject;
 
   # The jar of besom core holds its classes.
   example-besom-core = pkgs.runCommand "example-besom-core" { nativeBuildInputs = [ pkgs.unzip ]; } ''

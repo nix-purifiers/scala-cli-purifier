@@ -94,20 +94,24 @@ def isolated_env(work, cache, offline):
     the given coursier cache, the way the Nix build runs scala-cli."""
     home = work / "home"
     home.mkdir(parents=True, exist_ok=True)
-    # The build server binds a Unix domain socket under
-    # $XDG_DATA_HOME/scalacli/bloop/daemon, and Linux limits the path of
-    # such a socket to 107 bytes, so the data directory has a short name.
+    # Both the Bloop daemon and its BSP session bind Unix domain sockets.
+    # Keep their roots short and check both against Linux's 107-byte limit.
     data = work / "d"
-    socket = data / "scalacli/bloop/daemon/socket"
-    if len(os.fsencode(socket)) > 107:
-        raise PurifierError(
-            f"the build server's socket would be {socket}, which is longer than a Unix domain socket"
-            " path may be; set TMPDIR to a shorter directory"
-        )
+    cache_home = work / "c"
+    sockets = (
+        data / "scalacli/bloop/daemon/socket",
+        cache_home / "scalacli/bsp-sockets/proc-2147483647",
+    )
+    for socket in sockets:
+        if len(os.fsencode(socket)) > 107:
+            raise PurifierError(
+                f"the build server's socket would be {socket}, which is longer than a Unix domain socket"
+                " path may be; set TMPDIR to a shorter directory"
+            )
     e = {k: v for k, v in os.environ.items() if not k.startswith("COURSIER_")}
     e.update(
         HOME=str(home),
-        XDG_CACHE_HOME=str(home / ".cache"),
+        XDG_CACHE_HOME=str(cache_home),
         XDG_CONFIG_HOME=str(home / ".config"),
         XDG_DATA_HOME=str(data),
         XDG_STATE_HOME=str(home / ".local/state"),

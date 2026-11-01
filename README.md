@@ -247,6 +247,13 @@ JVM, Scala.js and Scala Native projects build. Scala.js links with
 `--js-cli-on-jvm`, the Scala.js linker that runs on the JVM, and Scala
 Native compiles with the clang of the package set.
 
+For reproducible Native builds, the Nix builder patches Scala Native's
+hierarchy metadata to hash types by their NIR names. Its identity-based
+hash sets otherwise assign different runtime type IDs on different runs.
+The patch changes only the build's copy of the tools jar; the downloaded
+jar and its locked hash stay intact. The rebuild check compares the Native
+binary byte for byte, as it does the JVM and Scala.js artifacts.
+
 These limits apply:
 
 - A download URL that carries credentials in its host part cannot be

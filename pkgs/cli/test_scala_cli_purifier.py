@@ -8,10 +8,26 @@ import json
 import os
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import lockfile
 import scala_cli_purifier as scp
+
+
+class EnvironmentTests(unittest.TestCase):
+    def test_bsp_socket_fits_in_a_github_runner_work_directory(self):
+        work = Path("/home/runner/work/_temp/scala-cli-purifier-85i0hn5y/check-listings")
+        with mock.patch.object(Path, "mkdir"):
+            env = scp.isolated_env(work, work / "coursier", offline=True)
+        socket = Path(env["XDG_CACHE_HOME"]) / "scalacli/bsp-sockets/proc-2147483647"
+        self.assertLessEqual(len(os.fsencode(socket)), 107)
+
+    def test_long_bsp_socket_path_has_an_actionable_error(self):
+        work = Path("/" + "w" * 72)
+        with mock.patch.object(Path, "mkdir"):
+            with self.assertRaisesRegex(scp.PurifierError, "TMPDIR"):
+                scp.isolated_env(work, work / "coursier", offline=True)
 
 
 class ArgumentTests(unittest.TestCase):

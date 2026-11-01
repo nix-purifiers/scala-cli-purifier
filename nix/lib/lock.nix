@@ -64,8 +64,7 @@ let
   mavenCentral = "https://repo1.maven.org/maven2/";
   mirrorsOf =
     url:
-    lib.optional (lib.hasPrefix mavenCentral url)
-      "https://maven-central.storage-download.googleapis.com/maven2/${lib.removePrefix mavenCentral url}";
+    lib.optional (lib.hasPrefix mavenCentral url) "https://maven-central.storage-download.googleapis.com/maven2/${lib.removePrefix mavenCentral url}";
   withMirrors = entry: if entry ? url then entry // { mirrors = mirrorsOf entry.url; } else entry;
 
   # The checksum `scala-cli-purifier lock` writes: the sha256 of the
@@ -186,10 +185,12 @@ let
         else
           lib.optional (data.version != supportedVersion)
             "scala-cli-purifier: ${toString lockFile} has lock format version ${toString data.version}; this library reads version ${toString supportedVersion}. Run `scala-cli-purifier lock` with the scala-cli-purifier whose flake provides this library."
-          ++ lib.optional (data.checksum != checksumOf data)
-            "scala-cli-purifier: ${toString lockFile} was edited after `scala-cli-purifier lock` wrote it: its checksum does not match its content. ${fix}"
-          ++ lib.optional (data.directivesHash != directivesHash src data.arguments)
-            "scala-cli-purifier: the project's `//> using` directives changed since ${toString lockFile} was made, so it may lack what they need. Run `scala-cli-purifier lock` to lock them.";
+          ++
+            lib.optional (data.checksum != checksumOf data)
+              "scala-cli-purifier: ${toString lockFile} was edited after `scala-cli-purifier lock` wrote it: its checksum does not match its content. ${fix}"
+          ++
+            lib.optional (data.directivesHash != directivesHash src data.arguments)
+              "scala-cli-purifier: the project's `//> using` directives changed since ${toString lockFile} was made, so it may lack what they need. Run `scala-cli-purifier lock` to lock them.";
 
       platform = data.platform or "JVM";
       programFiles = {

@@ -237,6 +237,12 @@ let
   # locked coursier cache, offline, and the offline mirror on that cache.
   # Coursier sends a HEAD request to the URL of a url= dependency on every
   # resolution, outside its cache; the mirror answers it from the cache.
+  nativeDeterminism = runCommand "scala-native-determinism" { } ''
+    mkdir -p "$out"
+    cp ${./DeterministicNative.java} DeterministicNative.java
+    ${jdk'}/bin/javac --add-exports java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED \
+      -d "$out" DeterministicNative.java
+  '';
   setup = ''
     export HOME="$TMPDIR/home"
     export XDG_CACHE_HOME="$HOME/.cache" XDG_CONFIG_HOME="$HOME/.config"
@@ -248,11 +254,22 @@ let
     # Coursier writes lock and marker files next to what it reads, so the
     # cache is a writable tree of links into the store.
     cp -rs --no-preserve=mode ${dependencies}/. "$COURSIER_CACHE"
+    ${lib.optionalString (platform == "Native") ''
+      # Work on the cache copy, keeping the locked download untouched.
+      # Stable hierarchy hashes give the same type IDs on each build.
+      while IFS= read -r -d "" tools; do
+        ${jdk'}/bin/java --add-exports java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED \
+          -cp ${nativeDeterminism} DeterministicNative "$tools" "$tools.patched"
+        mv -f "$tools.patched" "$tools"
+      done < <(find -L "$COURSIER_CACHE" -path '*/org/scala-native/tools_*/*/tools_*.jar' \
+        ! -name '*-sources.jar' ! -name '*-javadoc.jar' -print0)
+    ''}
     mkdir -p "$TMPDIR/user-home"
     ${python3.interpreter} -I ${mirrorSource}/local_repositories.py stage "$localSpecPath" "$TMPDIR"
     PATH="${jdk'}/bin:$PATH" ${python3.interpreter} -I ${mirrorSource}/offline_mirror.py \
       "$COURSIER_CACHE" "$TMPDIR/mirror" ${lockFile} &
     mirrorPid=$!
+    trap 'kill "$mirrorPid" 2>/dev/null || true' EXIT
     for _ in $(seq 300); do
       [ -s "$TMPDIR/mirror/java-options" ] && break
       kill -0 "$mirrorPid" 2>/dev/null || { echo "scala-cli-purifier: the offline mirror did not start" >&2; exit 1; }
