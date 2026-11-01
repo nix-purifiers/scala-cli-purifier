@@ -90,10 +90,12 @@ takes from the package set, such as `scala-cli`.
 the shape every purifier shares, with its problems listed, for tools that
 read locks.
 
-A project can keep its packaging external: the project holds only its
-sources, and the flake that builds it keeps the lockfile and passes it as
-`lockFile`. Every command then takes `--lockfile <path>`, or reads the path
-from `SCALA_CLI_PURIFIER_LOCKFILE`, which that flake's dev shell can set.
+We recommend committing `scala-cli-purifier.lock.json` to the repository of
+the project, where every command and the builder find it by default. When
+you package a project you do not change, a flake of your own can keep the
+lockfile instead and pass it as `lockFile`. Every command then takes
+`--lockfile <path>`, or reads the path from `SCALA_CLI_PURIFIER_LOCKFILE`,
+which the dev shell of that flake can set.
 
 ### Publishing the release
 

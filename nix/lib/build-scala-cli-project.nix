@@ -134,16 +134,19 @@ let
   # link into the store.
   dependencies = purifier.tree (
     {
+      # The `tree` of the purifier library builds the tree with
+      # pkgs.runCommand, and fetches with the packages it is given.
       pkgs = {
-        inherit
-          fetchurl
-          runCommand
-          writeText
-          python3
-          unzip
-          zstd
-          ;
+        inherit runCommand;
       };
+      inherit
+        fetchurl
+        runCommand
+        writeText
+        python3
+        unzip
+        zstd
+        ;
       name = "scala-cli-coursier-cache";
       entries = purifier.entriesFor stdenvNoCC.buildPlatform.system checked;
     }
