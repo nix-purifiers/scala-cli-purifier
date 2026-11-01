@@ -31,35 +31,47 @@ records every download of the project, and it lies at the project root.
 scala-cli has no plugin mechanism, so the command runs scala-cli itself
 with the options of the lock run.
 
+Then build the project with Nix from the same directory. The project needs
+no Nix file for this:
+
+```zsh
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
+    };
+  in
+  (pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.app'
+```
+
+Here `app` is the name of the program, which is the name of the project
+directory unless `lock --name` gave another. `result/bin/app` runs the
+program.
+
 The `overlays.default` of the flake adds one attribute to a package set,
 the scope `scala-cli-purifier`, which holds the builder
-`buildScalaCliProject` and the command `cli`. A package written for
-`callPackage` takes the scope by name:
-
-```nix
-# package.nix
-{ scala-cli-purifier }:
-(scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.app
-```
+`buildScalaCliProject` and the command `cli`. A project whose authors want a
+flake that packages it can use the builder in that flake, which can live in
+the repository of the project or in another one:
 
 ```nix
 {
   inputs.scala-cli-purifier.url = "github:nix-purifiers/scala-cli-purifier";
   inputs.nixpkgs.follows = "scala-cli-purifier/nixpkgs";
 
-  outputs = { nixpkgs, scala-cli-purifier, ... }:
+  outputs = { self, nixpkgs, scala-cli-purifier, ... }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [
-          scala-cli-purifier.overlays.default
-          (final: prev: { app = final.callPackage ./package.nix { }; })
-        ];
+        overlays = [ scala-cli-purifier.overlays.default ];
       };
     in
     {
-      packages.${system}.default = pkgs.app;
+      packages.${system}.default =
+        (pkgs.scala-cli-purifier.buildScalaCliProject { src = self; }).packages.app;
     };
 }
 ```
@@ -252,9 +264,29 @@ falls back to Google's mirror when Maven Central fails.
 ### Packaging besom core
 
 [besom](https://github.com/VirtusLab/besom), the Scala SDK for Pulumi,
-builds its `core` module with scala-cli. To package it without changing
-besom, keep the lockfile in a flake of your own. From a besom checkout, lock
-the module into that flake's directory:
+builds its `core` module with scala-cli. From a besom checkout, lock the
+module and build it from its directory:
+
+```zsh
+cd besom/core
+nix run github:nix-purifiers/scala-cli-purifier -- lock --name besom-core
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
+    };
+  in
+  (pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.besom-core'
+```
+
+`result/share/java/besom-core.jar` is the jar of the module. To work on it
+offline, run `scala-cli-purifier prefetch` once, and use `scala-cli` and
+your editor in `besom/core` as usual.
+
+To package besom without changing its repository, keep the lockfile in a
+flake of your own. Lock the module into that flake's directory:
 
 ```zsh
 cd besom/core
@@ -290,10 +322,9 @@ The flake in `~/besom-packaging` builds the module from besom's sources:
 }
 ```
 
-`nix build` then puts the module's jar at `result/share/java/besom-core.jar`.
-To work on besom offline, set `SCALA_CLI_PURIFIER_LOCKFILE` to the lockfile,
-run `scala-cli-purifier prefetch` once, and use `scala-cli` and your editor
-in `besom/core` as usual.
+`nix build` then puts the jar at `result/share/java/besom-core.jar`. To work
+on besom offline with that lockfile, set `SCALA_CLI_PURIFIER_LOCKFILE` to it
+before `scala-cli-purifier prefetch`.
 
 ## Credits
 
