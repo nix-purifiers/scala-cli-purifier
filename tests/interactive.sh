@@ -39,6 +39,38 @@ if [ "$output" != 'geny from a URL: 2,4,6' ]; then
 fi
 rm -rf .scala-cli-purifier .scala-build
 
+# A `file:` repository outside the project: lock a scratch project that
+# names one by its absolute path, then build it in the sandbox with the
+# repository given as localRepositories.<name>.
+repository="$home/shared-repository"
+project="$home/file-repository-project"
+mkdir -p "$repository" "$project"
+cp -r "$root/tests/fixtures/local-home/.m2/repository/." "$repository"
+cat > "$project/Use.scala" <<EOF
+//> using scala 3.3.4
+//> using repository file://$repository
+//> using dep example.local::whisper:0.1.0
+@main def main(): Unit = println(whisper.whisper("FROM A FILE REPOSITORY"))
+EOF
+(cd "$project" && "$cli" lock)
+name=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["localRepositories"][0]["name"])' "$project/scala-cli-purifier.lock.json")
+echo "the lock names the file: repository $name"
+built=$(nix build --no-link --print-out-paths --impure --expr "
+  let
+    flake = builtins.getFlake \"git+file://$root\";
+    pkgs = flake.inputs.nixpkgs.legacyPackages.\${builtins.currentSystem}.extend flake.overlays.default;
+  in
+  (pkgs.buildScalaCliProject {
+    src = $project;
+    localRepositories.\"$name\" = $repository;
+  }).package")
+output=$("$built/bin/file-repository-project")
+echo "$output"
+if [ "$output" != 'from a file repository...' ]; then
+  echo "unexpected output from the build of the file: repository project" >&2
+  exit 1
+fi
+
 cd "$root/tests/fixtures/library"
 repo="$home/repository"
 "$cli" publish "$repo"

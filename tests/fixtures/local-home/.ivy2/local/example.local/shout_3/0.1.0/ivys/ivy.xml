@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ivy-module version="2.0" xmlns:m="http://maven.apache.org/POM/4.0.0" xmlns:e="http://ant.apache.org/ivy/extra">
+  <info organisation="example.local" module="shout_3" revision="0.1.0" status="integration" publication="20261101090407">
+    <description>shout_3</description>
+    <m:name>shout</m:name>
+  </info>
+  <configurations>
+    <conf name="compile" visibility="public" description=""/>
+    <conf name="runtime" extends="compile" visibility="public" description=""/>
+    <conf name="test" extends="runtime" visibility="public" description=""/>
+    <conf name="provided" visibility="public" description=""/>
+    <conf name="docs" visibility="public" description=""/>
+    <conf name="sources" visibility="public" description=""/>
+    <conf name="pom" visibility="public" description=""/>
+  </configurations>
+  <publications>
+    <artifact name="shout_3" type="jar" ext="jar" conf="compile"/>
+    <artifact e:classifier="javadoc" name="shout_3" type="doc" ext="jar" conf="docs"/>
+    <artifact e:classifier="sources" name="shout_3" type="src" ext="jar" conf="sources"/>
+    <artifact name="shout_3" type="pom" ext="pom" conf="pom"/>
+  </publications>
+  <dependencies>
+    <dependency org="org.scala-lang" name="scala3-library_3" rev="3.3.4" conf="compile-&gt;default(compile)"> </dependency>
+  </dependencies>
+</ivy-module>

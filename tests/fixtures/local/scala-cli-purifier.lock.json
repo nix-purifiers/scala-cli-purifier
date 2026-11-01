@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "scalaCliVersion": "1.18.0",
+  "javaVersion": "21.0.12.1",
+  "name": "local",
+  "platform": "JVM",
+  "arguments": [
+    "."
+  ],
+  "test": false,
+  "publish": false,
+  "publication": [],
+  "localRepositories": [
+    {
+      "name": "m2Local",
+      "layout": "maven",
+      "pattern": "",
+      "files": [
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0-javadoc.jar",
+          "hash": "sha256-299/Cnuj9I31P/AIKazZOF0lrihPpCK1qp+FjPjXxS8="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0-javadoc.jar.md5",
+          "hash": "sha256-ETvIJ52sBBQ8zultYGZ7RTW3M0dwveup8g1I7Jg+lxw="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0-javadoc.jar.sha1",
+          "hash": "sha256-F93A2FT2L+EVEzm9JejAcDTrOSYfYTGPAXnmzrBAYXE="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0-sources.jar",
+          "hash": "sha256-zaK2hD8mcAkVhUTxsuFz8836KqwF7uftOL+4+QwRt9s="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0-sources.jar.md5",
+          "hash": "sha256-Ao/fyYUJFNAjG3JtIQBO2xWv1eqhSecxXLtyjC3vgsM="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0-sources.jar.sha1",
+          "hash": "sha256-LFnvo0jX+hId7UVCoLJiiv5wtQ+VP6cdEfgMD+eDOV8="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0.jar",
+          "hash": "sha256-R/kXkP2owxToiJBTwlbTwiI68ZmJFom/YHHkrCxm/7M="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0.jar.md5",
+          "hash": "sha256-FUfPs91S3bQKlWBM6+aaiyZ9uuhEF53QOWAqSyZUpdc="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0.jar.sha1",
+          "hash": "sha256-zkAJ+O8PwVCgV2QAZHka2eAB7oa9PXtc8YhrFnAacjI="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0.pom",
+          "hash": "sha256-Bm6vlwvyXM0ibhOGjLMs8zmWzx46PD93WXfzseTEfjc="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0.pom.md5",
+          "hash": "sha256-devtrGdHOVJmkP4wpSMkSJr2iCWBmceiFpL2XJbZfAM="
+        },
+        {
+          "path": "example/local/whisper_3/0.1.0/whisper_3-0.1.0.pom.sha1",
+          "hash": "sha256-JYNG61ccxg14y8sWXzsK7w4yKLFaXImlbjj26F4TeKs="
+        }
+      ]
+    },
+    {
+      "name": "ivy2Local",
+      "layout": "ivy",
+      "pattern": "[organisation]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext]",
+      "files": [
+        {
+          "path": "example.local/shout_3/0.1.0/docs/shout_3-javadoc.jar",
+          "hash": "sha256-sJGn0nJX/E+qIoGD1RPNlYtCIVECwmlBK6444foXbHc="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/docs/shout_3-javadoc.jar.md5",
+          "hash": "sha256-/15uen/Cqeq5b90IJe3rrXvhMH6Oo6PAMNp2XO7prFQ="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/docs/shout_3-javadoc.jar.sha1",
+          "hash": "sha256-KCA1WVs4hydcBVaHgiFwQKA7whYWSWAbFi6O0PdKMeI="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/ivys/ivy.xml",
+          "hash": "sha256-uq5vMWDy70DaawG+NLTs/kk5osjn/R72b2zx8DVJDv8="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/ivys/ivy.xml.md5",
+          "hash": "sha256-aQ/TjnBHcvjXbk051UxzFJ9HaX4L37TZq9UF0WuMPao="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/ivys/ivy.xml.sha1",
+          "hash": "sha256-zha79Yuhzdsb+Gl3KwKlht8rszwctyxBPZbT4BD8ZIM="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/jars/shout_3.jar",
+          "hash": "sha256-fn9tXd0o3uwxTqLtA2c+b+fz2TJ+VMNdwFBG/FkIBjU="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/jars/shout_3.jar.md5",
+          "hash": "sha256-YkbRZMYK3CfddN2Z/zKSmSFZcFZOnNlskL9GwNXiVU0="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/jars/shout_3.jar.sha1",
+          "hash": "sha256-ST6w4/yQLuk9RuvjnY4chF6+/fnIkc2EnfbFXZs9Q+o="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/poms/shout_3.pom",
+          "hash": "sha256-BjfeP8BVF9SQj3PrQbkUiUEiU34ZYwAuaWajp591uGg="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/poms/shout_3.pom.md5",
+          "hash": "sha256-harjWPIUitq3pDnMObtwdNdcNza7ILxG5gVcE5y57bM="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/poms/shout_3.pom.sha1",
+          "hash": "sha256-m/mApSW0fTnl4kVNEo1hNcpt0azrmpLj+cq2uJqe5I0="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/srcs/shout_3-sources.jar",
+          "hash": "sha256-jJqZF/Fu0yBdlYLQ7hgZJcw1DON6ztQzirFDEjPz1Lg="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/srcs/shout_3-sources.jar.md5",
+          "hash": "sha256-IQFZzQmqJ2T8A8oDc3kPZLUdwi8X3G94o9L3JVONzhw="
+        },
+        {
+          "path": "example.local/shout_3/0.1.0/srcs/shout_3-sources.jar.sha1",
+          "hash": "sha256-9dSOsSiO7CHIn5RQsweCh+0tl1qDoqSktjzx0CNYzxo="
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "https/repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar",
+      "url": "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar",
+      "mirrors": [],
+      "hash": "sha256-NO0eHyf6iWvKUNvE6ZzzcylnzsOHp6DV40hsCWc/6MY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.pom",
+      "url": "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.pom",
+      "mirrors": [],
+      "hash": "sha256-4E4llRUB3yWtx7Hc22xTNzyUiXuE0+FJISknY+4Hrj0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-QtW74fVG3qJIuMkB2n3rmUP3YpA3lVKSPJdjSVu58XI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-native/3.25.1/jline-native-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-1anShfk14FFVoYwAIVUlMuHHfjyxmIevh+gtkzOtJNc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-parent/3.25.1/jline-parent-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-parent/3.25.1/jline-parent-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-bUHuLZPDxLaweopaMZ5pwDH7yBWLEYz1uG57DTuyyyA="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-JjM6J13lAq3x3Z5upQqgtAIUEscUkN+e1eiKZIiG7ok="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-reader/3.25.1/jline-reader-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-dih4cq9sX8mYSujz/GM04I7umt0/2mMfDH0U6qgQPDE="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-WMqdcZw3MgavFXde481fJoE26g0MTgCcPpam1GEtXGY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal-jna/3.25.1/jline-terminal-jna-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-0a3X7/u7B18MMfpSgm9HlmU+Zf9F1n86MQeK4Jl+bLY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.jar",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.jar",
+      "mirrors": [],
+      "hash": "sha256-wPXXCQElXaZqlOWXeLJl0Z+TCDQleONMiPyS0bDGX+8="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.pom",
+      "url": "https://repo1.maven.org/maven2/org/jline/jline-terminal/3.25.1/jline-terminal-3.25.1.pom",
+      "mirrors": [],
+      "hash": "sha256-tmzpQTySv1Y5yfgyenKf4g0dYF0QMwjwR3f/k/B1e0Q="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.jar",
+      "mirrors": [],
+      "hash": "sha256-vxb4tp6Jytq1ULziZqBSeAr38esp3RwEw70BQRN1LBI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-asm/9.6.0-scala-1/scala-asm-9.6.0-scala-1.pom",
+      "mirrors": [],
+      "hash": "sha256-SLs1Yi4BkpPFLIUKUo578cG6eYVi7XgpoLMLN/04JR0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.jar",
+      "mirrors": [],
+      "hash": "sha256-Q+DKFYPfGWbq8C8Pvdz7N4S5ld0Gv8kHIJNHdYzkt+M="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.14/scala-library-2.13.14.pom",
+      "mirrors": [],
+      "hash": "sha256-zuhsbfVlOq9VQDZmkC/LsKqvQA6yz/sn8Jyl117HA7w="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-LMpl/bkuLMOTeGyuYbT3vLkDKtS+YfnOuuHcpymX5S8="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-compiler_3/3.3.4/scala3-compiler_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-HjP34s/Sl1cvDgvOFQZNocr+1Z0DbV6RXL1RyMJgTbU="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-/gVsEKIXNT4UqmIHbSu9lX69guAvtEXKVUaujqnUDKo="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-interfaces/3.3.4/scala3-interfaces-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-6GDdhZL/Pvwm7iP2WVhSU6xWCFVA2cEWkfjIKjKcxFY="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-2VGErPzYFNouBRN45JYsZT9LRo9AhkUqtCevAwSCvTw="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.4/scala3-library_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-RVd6FeDwuYRYaK3StQr62W0chvXyFur1PC8sfQGtSQI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.jar",
+      "mirrors": [],
+      "hash": "sha256-E9RGk9by044FlZVNESNMA3PW0OaJqBUbBoeMW2MdV9U="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-lang/tasty-core_3/3.3.4/tasty-core_3-3.3.4.pom",
+      "mirrors": [],
+      "hash": "sha256-idL2ljHtav+V/BmVwgtKQZKcilb09zacmsgeWSl/ER0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.jar",
+      "mirrors": [],
+      "hash": "sha256-uYatHPzvFMir6qPniN8ovpFQrPv1h7X3qpLBsEPE+o0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.9.6/compiler-interface-1.9.6.pom",
+      "mirrors": [],
+      "hash": "sha256-kVdZUWZeZ/ipGkWCmy9KFMrGenMnYK7Y0Qk8ZjU9muc="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.jar",
+      "mirrors": [],
+      "hash": "sha256-EwKxomVoi3vDF5bUH5P75Ujl2vNupNyEjuCmsV/FOQQ="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.9.8/util-interface-1.9.8.pom",
+      "mirrors": [],
+      "hash": "sha256-P74Xqsmf/Dd4nwJxomcEJgAz2l92dJevMzdBPCwlETo="
+    }
+  ]
+}

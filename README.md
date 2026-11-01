@@ -77,12 +77,22 @@ for that run, which scala-cli trusts through its trust store options, and
 answers each request from the locked files. A request for a file the
 lockfile lacks gets 404 and names the missing file.
 
-The repositories `ivy2Local` and `m2Local`, and `file:` URLs outside the
-project, cannot be locked. Coursier reads them in place on the machine
-that locks, and they hold files that machine published locally, which no
-URL serves, so the Nix build has nothing to fetch. Publish such a library
-to a repository, or put its jar in the project and name it with
-`//> using jar`.
+Local repositories work too: `ivy2Local`, which scala-cli reads by
+default, `m2Local`, and any other `file:` repository, inside or outside
+the project. Coursier reads a local repository in place, so nothing about
+it lands in the cache. The lock run takes the build's class path instead,
+and records every file of each module version directory the class path
+reaches into, with its hash, by its path relative to the repository's
+root. Its offline check builds from those files alone. The Nix build is
+given each repository as a directory (`localRepositories`), copies the
+recorded files from it, checks their hashes, and points scala-cli at the
+copy. `exec` reads the real directories.
+
+The lockfile names each local repository: `ivy2Local`, `m2Local`, or the
+directory name of another `file:` repository. scala-cli finds `ivy2Local`
+and `m2Local` under the JVM's `user.home`, which comes from the password
+database rather than from `HOME`; `SCALA_CLI_PURIFIER_USER_HOME` replaces
+it for `lock` and `exec`.
 
 ## Use
 
@@ -138,8 +148,19 @@ returns:
 - `dependencies`, the coursier cache of the locked files.
 
 It takes `lockFile`, `jdk`, `fetchurl` (for credentials or mirrors),
-`doCheck` and `srcFilter`; `nix/lib/build-scala-cli-project.nix` documents
-each one.
+`doCheck`, `srcFilter` and `localRepositories`;
+`nix/lib/build-scala-cli-project.nix` documents each one. A project that
+reads local repositories takes each one by the name the lockfile gives it:
+
+```nix
+(buildScalaCliProject {
+  src = ./.;
+  localRepositories = {
+    ivy2Local = ./vendor/ivy-local;
+    m2Local = ./vendor/m2;
+  };
+}).package
+```
 
 The lockfile names the scala-cli version it was made with, because
 scala-cli downloads tools of its own version. The builder refuses a lock
@@ -189,6 +210,15 @@ is compiled outside the sandbox.
   the Nix build fetches from it when `fetchurl` supplies them (nixpkgs'
   `fetchurl` takes `netrcPhase`). A download URL that carries credentials
   in its host part cannot be locked.
+- The lock records a local repository by the module version directories
+  of the class path. A module whose descriptor names a parent POM in
+  another directory of the same local repository fails the offline check,
+  which names the missing file; publishing the parent to a remote
+  repository, or as part of the project's jars, avoids it.
+- The offline check reads `ivy2Local` and `m2Local` from the recorded
+  files alone. Another `file:` repository stays visible at its own path on
+  the machine that locks, so for one of those only the Nix build proves
+  that the recorded files suffice.
 
 ## Credits
 

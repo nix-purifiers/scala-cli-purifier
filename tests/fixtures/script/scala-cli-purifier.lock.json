@@ -10,6 +10,7 @@
   "test": false,
   "publish": false,
   "publication": [],
+  "localRepositories": [],
   "artifacts": [
     {
       "path": "https/repo1.maven.org/maven2/com/lihaoyi/geny_2.13/1.1.1/geny_2.13-1.1.1.jar",

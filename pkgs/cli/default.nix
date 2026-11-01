@@ -30,6 +30,7 @@ let
     fileset = lib.fileset.unions [
       ../../nix/lib
       ./offline_mirror.py
+      ./local_repositories.py
       ./coursier_cache.py
     ];
   };
@@ -43,9 +44,11 @@ stdenvNoCC.mkDerivation {
     fileset = lib.fileset.unions [
       ./scala_cli_purifier.py
       ./coursier_cache.py
+      ./local_repositories.py
       ./offline_mirror.py
       ./publication.py
       ./test_coursier_cache.py
+      ./test_local_repositories.py
       ./test_offline_mirror.py
       ./test_publication.py
     ];
@@ -63,14 +66,14 @@ stdenvNoCC.mkDerivation {
   checkPhase = ''
     runHook preCheck
     export HOME="$TMPDIR/home"
-    python3 -m unittest -v test_coursier_cache test_publication test_offline_mirror
+    python3 -m unittest -v test_coursier_cache test_local_repositories test_publication test_offline_mirror
     runHook postCheck
   '';
 
   installPhase = ''
     runHook preInstall
     install -Dm644 -t "$out/libexec/scala-cli-purifier" \
-      scala_cli_purifier.py coursier_cache.py offline_mirror.py publication.py
+      scala_cli_purifier.py coursier_cache.py local_repositories.py offline_mirror.py publication.py
     makeWrapper ${python3.interpreter} "$out/bin/scala-cli-purifier" \
       --add-flags "-I $out/libexec/scala-cli-purifier/scala_cli_purifier.py" \
       --prefix PATH : ${

@@ -74,6 +74,12 @@
   # `filter` of builtins.path. The default leaves out build outputs, editor
   # state and the purifier's own state.
   srcFilter ? null,
+  # The local repositories the lock read from, by the names the lockfile
+  # gives them (`ivy2Local`, `m2Local`, or a `file:` repository's directory
+  # name), each a directory laid out as the repository was. The build
+  # copies the files the lockfile records from each one and checks their
+  # hashes.
+  localRepositories ? { },
 }:
 let
   lock = import ./lock.nix { inherit lockFile; };
@@ -132,16 +138,53 @@ let
   # subcommand. $mirrorOptions sends its requests to the offline mirror.
   scalaCli =
     command:
-    ''scala-cli -Djava.io.tmpdir="$TMPDIR/java-tmp" $mirrorOptions ${command} ${lib.escapeShellArgs common}'';
+    ''scala-cli -Djava.io.tmpdir="$TMPDIR/java-tmp" -Duser.home="$TMPDIR/user-home" $mirrorOptions ${command} ${lib.escapeShellArgs common} ${localRepositoryOptions}'';
 
-  # The offline mirror and the coursier cache module it imports.
+  # The offline mirror, the staging of local repositories, and the coursier
+  # cache module both import.
   mirrorSource = lib.fileset.toSource {
     root = ../../pkgs/cli;
     fileset = lib.fileset.unions [
       ../../pkgs/cli/offline_mirror.py
+      ../../pkgs/cli/local_repositories.py
       ../../pkgs/cli/coursier_cache.py
     ];
   };
+
+  # Where the build reads each local repository from, relative to $TMPDIR:
+  # ivy2Local and m2Local under the home it passes as user.home, any other
+  # `file:` repository under local-repositories/, which it adds with
+  # --repository in the repository's layout.
+  locals = lock.localRepositories or [ ];
+  localTarget =
+    repo:
+    {
+      ivy2Local = "user-home/.ivy2/local";
+      m2Local = "user-home/.m2/repository";
+    }
+    .${repo.name} or "local-repositories/${repo.name}";
+  localRepositoryOptions = lib.concatMapStrings (
+    repo:
+    lib.optionalString
+      (
+        !lib.elem repo.name [
+          "ivy2Local"
+          "m2Local"
+        ]
+      )
+      ''--repository "${if repo.layout == "ivy" then "ivy:" else ""}file://$TMPDIR/${localTarget repo}${
+        lib.optionalString (repo.layout == "ivy") "/${repo.pattern}"
+      }" ''
+  ) locals;
+  localSpec = builtins.toJSON (
+    map (repo: {
+      inherit (repo) name files;
+      source = "${localRepositories.${repo.name}
+        or (throw "scala-cli-purifier: ${toString lockFile} reads the local repository ${repo.name}; pass it as localRepositories.${repo.name}")
+      }";
+      target = localTarget repo;
+    }) locals
+  );
 
   # The hosts of the locked URLs, which the offline mirror makes
   # certificates for.
@@ -190,6 +233,8 @@ let
     # Coursier writes lock and marker files next to what it reads, so the
     # cache is a writable tree of links into the store.
     cp -rs --no-preserve=mode ${dependencies}/. "$COURSIER_CACHE"
+    mkdir -p "$TMPDIR/user-home"
+    ${python3.interpreter} -I ${mirrorSource}/local_repositories.py stage "$localSpecPath" "$TMPDIR"
     PATH="${jdk'}/bin:$PATH" ${python3.interpreter} -I ${mirrorSource}/offline_mirror.py \
       "$COURSIER_CACHE" "$TMPDIR/mirror" ${lib.escapeShellArgs hosts} &
     mirrorPid=$!
@@ -254,6 +299,8 @@ let
     ]
     ++ platformInputs;
     dontConfigure = true;
+    inherit localSpec;
+    passAsFile = [ "localSpec" ];
     postUnpack = setup;
 
     buildPhase = ''
@@ -305,6 +352,8 @@ let
       # The output is jars, POMs and checksums of them; fixup must not
       # change them.
       dontFixup = true;
+      inherit localSpec;
+      passAsFile = [ "localSpec" ];
       postUnpack = setup;
       buildPhase = ''
         runHook preBuild

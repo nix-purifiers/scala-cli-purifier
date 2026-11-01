@@ -27,6 +27,7 @@
       "path": "io/github/nix-purifiers/example/greeting_3/1.0.0/greeting_3-1.0.0.pom"
     }
   ],
+  "localRepositories": [],
   "artifacts": [
     {
       "path": "https/repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.12.1/jackson-annotations-2.12.1.pom",

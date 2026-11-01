@@ -10,6 +10,7 @@
   "test": true,
   "publish": false,
   "publication": [],
+  "localRepositories": [],
   "artifacts": [
     {
       "path": "https/repo1.maven.org/maven2/com/github/scopt/scopt_2.12/4.0.1/scopt_2.12-4.0.1.jar",
@@ -222,6 +223,18 @@
       "hash": "sha256-2YGvX+VIHbPdwlKWfmsKNuJuQ+05Mb+cK7lNEnNctJU="
     },
     {
+      "path": "https/repo1.maven.org/maven2/org/scala-native/junit-runtime_native0.5_3/0.5.5/junit-runtime_native0.5_3-0.5.5.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-native/junit-runtime_native0.5_3/0.5.5/junit-runtime_native0.5_3-0.5.5.jar",
+      "mirrors": [],
+      "hash": "sha256-/YlH3gXFxqbR/9PHTWK2wJlBhNqUjs0SV0XLUWTuHPk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-native/junit-runtime_native0.5_3/0.5.5/junit-runtime_native0.5_3-0.5.5.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-native/junit-runtime_native0.5_3/0.5.5/junit-runtime_native0.5_3-0.5.5.pom",
+      "mirrors": [],
+      "hash": "sha256-IHzP27nSfFARCtT1KNBUtmpIq9Rr5kQpMXBlwDbCH+I="
+    },
+    {
       "path": "https/repo1.maven.org/maven2/org/scala-native/nativelib_native0.5_3/0.5.12/nativelib_native0.5_3-0.5.12.jar",
       "url": "https://repo1.maven.org/maven2/org/scala-native/nativelib_native0.5_3/0.5.12/nativelib_native0.5_3-0.5.12.jar",
       "mirrors": [],
@@ -324,6 +337,18 @@
       "hash": "sha256-Ykc9GBGQEJBQDZ7EJHov7RktIgqOyJIQfoC2oYaPUMw="
     },
     {
+      "path": "https/repo1.maven.org/maven2/org/scala-native/test-interface-sbt-defs_native0.5_3/0.5.5/test-interface-sbt-defs_native0.5_3-0.5.5.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-native/test-interface-sbt-defs_native0.5_3/0.5.5/test-interface-sbt-defs_native0.5_3-0.5.5.jar",
+      "mirrors": [],
+      "hash": "sha256-1a6PMG6QPVboPZxU1BQY76yiWXfjgBKg5X0oplfBNPM="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-native/test-interface-sbt-defs_native0.5_3/0.5.5/test-interface-sbt-defs_native0.5_3-0.5.5.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-native/test-interface-sbt-defs_native0.5_3/0.5.5/test-interface-sbt-defs_native0.5_3-0.5.5.pom",
+      "mirrors": [],
+      "hash": "sha256-4yjcB79LRPWcrFjzsNKJ8urEV+tYaO0fOKzO/NoihGk="
+    },
+    {
       "path": "https/repo1.maven.org/maven2/org/scala-native/test-interface_native0.5_3/0.5.12/test-interface_native0.5_3-0.5.12.jar",
       "url": "https://repo1.maven.org/maven2/org/scala-native/test-interface_native0.5_3/0.5.12/test-interface_native0.5_3-0.5.12.jar",
       "mirrors": [],
@@ -334,6 +359,18 @@
       "url": "https://repo1.maven.org/maven2/org/scala-native/test-interface_native0.5_3/0.5.12/test-interface_native0.5_3-0.5.12.pom",
       "mirrors": [],
       "hash": "sha256-u+sVtkordGeu3zyaLSudtH7+opL14TZETYTuqEs1/nk="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-native/test-interface_native0.5_3/0.5.5/test-interface_native0.5_3-0.5.5.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-native/test-interface_native0.5_3/0.5.5/test-interface_native0.5_3-0.5.5.jar",
+      "mirrors": [],
+      "hash": "sha256-5PLJpheCqzB6K+QETL0wYYeOagZpgl8iR9ZPIUhDKcI="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-native/test-interface_native0.5_3/0.5.5/test-interface_native0.5_3-0.5.5.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-native/test-interface_native0.5_3/0.5.5/test-interface_native0.5_3-0.5.5.pom",
+      "mirrors": [],
+      "hash": "sha256-Ix5aHS18KEfFNN3MveoWi6t0HN4LaSavWJWtvMRQ/84="
     },
     {
       "path": "https/repo1.maven.org/maven2/org/scala-native/tools_2.12/0.5.12/tools_2.12-0.5.12.jar",

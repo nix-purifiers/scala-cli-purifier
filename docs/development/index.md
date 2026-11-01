@@ -14,6 +14,10 @@ The repository is a caisson flake, laid out like sbt-nix-backend.
     offline check of `lock`, `exec` and the Nix build run it.
   - `publication.py` uploads a publication, signs it, or writes a Maven
     Central bundle.
+  - `local_repositories.py` finds a build's local repositories among its
+    resolvers, records the files its class path reaches into, and stages
+    them with their hashes checked, in the offline check and in the Nix
+    build.
 - `nix/lib/` is the Nix library. `lock.nix` reads a lockfile, `fetch.nix`
   fetches one locked file, `dependencies.nix` builds the coursier cache of a
   lockfile, `realize.nix` is what `exec` builds without nixpkgs,
@@ -58,6 +62,7 @@ and run its program:
 | `script` | a single-file Scala 2.13 program |
 | `sources` | a repository besides Maven Central, a jar in the project, a version range held inline |
 | `url` | a dependency downloaded from a URL, through the offline mirror |
+| `local` | dependencies from `ivy2Local` and `m2Local`, given as `localRepositories` |
 | `js` | Scala.js, linked on the JVM, run and tested on Node.js |
 | `native` | Scala Native, compiled with clang, tested in the build |
 | `library` | `--publish`: the publication and its files |
@@ -66,4 +71,10 @@ The `*-outputs` checks require that `artifacts` names exactly the expected
 outputs at evaluation time, then build and link each one. The `cli`
 package runs the unit tests of `coursier_cache.py`, `publication.py` and
 `offline_mirror.py` in its build. `tests/interactive.sh` covers `exec`,
-including a URL dependency, and `publish` to a directory and to a bundle.
+including a URL dependency, a `file:` repository outside the project
+(locked, then built in the sandbox with `localRepositories`), and
+`publish` to a directory and to a bundle.
+
+The `local` fixture is locked with `SCALA_CLI_PURIFIER_USER_HOME` pointing
+at `tests/fixtures/local-home`, whose repositories
+`tests/local-libraries/publish.sh` writes.

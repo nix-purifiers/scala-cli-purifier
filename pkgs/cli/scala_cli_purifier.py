@@ -46,6 +46,7 @@ from pathlib import Path
 # directory off sys.path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import coursier_cache
+import local_repositories
 import offline_mirror
 import publication
 
@@ -93,11 +94,13 @@ def isolated_env(work, cache, offline):
     return e
 
 
-def java_properties(work, mirror_options=None):
+def java_properties(work, mirror_options=None, user_home=None):
     """The -D options of every scala-cli invocation: online, the options for
     the proxy the environment names; offline, the options that send
-    requests to the offline mirror. The native scala-cli reads Java
-    properties only from -D options placed before its subcommand."""
+    requests to the offline mirror. `user_home` replaces the home whose
+    .ivy2/local and .m2/repository scala-cli reads. The native scala-cli
+    reads Java properties only from -D options placed before its
+    subcommand."""
     tmp = work / "java-tmp"
     tmp.mkdir(parents=True, exist_ok=True)
     props = [f"-Djava.io.tmpdir={tmp}"]
@@ -105,7 +108,15 @@ def java_properties(work, mirror_options=None):
         props += coursier_cache.java_proxy_properties()
     else:
         props += mirror_options
+    if user_home is not None:
+        props.append(f"-Duser.home={user_home}")
     return props
+
+
+def home_override():
+    """The home SCALA_CLI_PURIFIER_USER_HOME names, which scala-cli then reads
+    .ivy2/local and .m2/repository from, or None."""
+    return local_repositories.user_home() if os.environ.get("SCALA_CLI_PURIFIER_USER_HOME") else None
 
 
 def start_mirror(cache, state, urls, java_home):
@@ -140,18 +151,20 @@ def package_options(platform, out):
     return ["-o", str(out / "program")]
 
 
-def scala_cli_commands(work, java_home, arguments, platform, test, publish, mirror_options=None):
+def scala_cli_commands(
+    work, java_home, arguments, platform, test, publish, mirror_options=None, user_home=None, extra=()
+):
     """The scala-cli invocations of a lock run, online, or of its offline
     check, given the offline mirror's Java options; the Nix build runs the
-    same ones."""
+    same ones. `extra` are more options for each command."""
     scala_cli = env("SCALA_CLI_PURIFIER_SCALA_CLI")
     offline = mirror_options is not None
-    props = java_properties(work, mirror_options)
+    props = java_properties(work, mirror_options, user_home)
     # scala-cli keeps compiled classes and generated Scaladoc in the
     # workspace's .scala-build and reuses them, which would skip downloads
     # the Nix build needs; each run gets an empty workspace, as a fresh
     # copy of the project in the sandbox has.
-    common = [*common_options(java_home, platform, offline), "--workspace", str(work / "workspace")]
+    common = [*common_options(java_home, platform, offline), "--workspace", str(work / "workspace"), *extra]
     out = work / "out"
     out.mkdir(parents=True, exist_ok=True)
     commands = [[scala_cli, *props, "package", *common, *package_options(platform, out), "-f", *arguments]]
@@ -180,13 +193,14 @@ def run_all(commands, cwd, environment, quiet):
     return None
 
 
-def detect_platform(root, work, java_home, arguments, environment):
-    """The platform the project builds for: JVM, JS or Native, which
-    `using platform` directives or options decide."""
+def detect_platform(root, work, java_home, arguments, environment, user_home):
+    """The platform the project builds for (JVM, JS or Native, which
+    `using platform` directives or options decide) and the resolvers of
+    its scopes."""
     export = work / "export"
     command = [
         env("SCALA_CLI_PURIFIER_SCALA_CLI"),
-        *java_properties(work),
+        *java_properties(work, user_home=user_home),
         "export",
         "--power",
         "--json",
@@ -203,10 +217,38 @@ def detect_platform(root, work, java_home, arguments, environment):
     if failure is not None:
         sys.stderr.write(failure)
         raise PurifierError("`scala-cli export --json` failed, so the project's platform is unknown")
-    platform = json.loads((export / "export.json").read_text()).get("platform")
+    exported = json.loads((export / "export.json").read_text())
+    platform = exported.get("platform")
     if platform not in PLATFORMS:
         raise PurifierError(f"scala-cli reports platform {platform!r}, which this version does not build")
-    return platform
+    resolvers = []
+    for scope in exported.get("scopes", {}).values():
+        resolvers += [r for r in scope.get("resolvers", []) if r not in resolvers]
+    return platform, resolvers
+
+
+def class_path(root, work, java_home, arguments, platform, test_scope, environment, user_home):
+    """The class path of the project's main scope, or with `test_scope` of
+    its test scope, as `scala-cli compile --print-class-path` prints it."""
+    command = [
+        env("SCALA_CLI_PURIFIER_SCALA_CLI"),
+        *java_properties(work, user_home=user_home),
+        "compile",
+        *common_options(java_home, platform, offline=False),
+        "--workspace",
+        str(work / "workspace"),
+        "--print-class-path",
+        *(["--test"] if test_scope else []),
+        *arguments,
+    ]
+    result = subprocess.run(
+        command, cwd=root, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False
+    )
+    if result.returncode != 0:
+        sys.stderr.write(result.stdout + result.stderr)
+        raise PurifierError("`scala-cli compile --print-class-path` failed")
+    lines = result.stdout.strip().splitlines()
+    return lines[-1].split(os.pathsep) if lines else []
 
 
 def java_version(java_home):
@@ -226,20 +268,46 @@ def default_java_home():
 # --- lock -----------------------------------------------------------------
 
 
-def check_offline(root, java_home, arguments, platform, test, publish, source_cache, paths, work):
-    """Build offline from `paths` of `source_cache` alone, in a fresh home.
-    Returns None on success and the build's output on failure."""
+def stage_local_repositories(locals_, sources, home, other_root):
+    """Copies the recorded files of each local repository into the places
+    an offline build reads them from, as the Nix build does: ivy2Local and
+    m2Local under `home`, which the build passes as user.home, and any other
+    repository under `other_root`, which the build adds with --repository.
+    Returns those --repository options."""
+    extra = []
+    for repo in locals_:
+        name = repo["name"]
+        if name == "ivy2Local":
+            target = home / ".ivy2" / "local"
+        elif name == "m2Local":
+            target = home / ".m2" / "repository"
+        else:
+            target = other_root / name
+            extra += ["--repository", local_repositories.resolver_for(repo, target)]
+        local_repositories.stage(name, sources[name], target, repo["files"])
+    return extra
+
+
+def check_offline(root, java_home, arguments, platform, test, publish, source_cache, paths, work, locals_, sources):
+    """Build offline from `paths` of `source_cache` and the recorded files of
+    the local repositories alone, in a fresh home. Returns None on success
+    and the build's output on failure."""
     cache = work / "cache"
     for rel in paths:
         target = cache / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source_cache / rel, target)
+    user_home = work / "user-home"
+    user_home.mkdir(parents=True, exist_ok=True)
+    extra = stage_local_repositories(locals_, sources, user_home, work / "local-repositories")
     urls = [coursier_cache.url_of(p) for p in paths]
     unlocked = []
     mirror_options, server = start_mirror(cache, work / "mirror", urls, java_home)
     offline_mirror.Handler.log = staticmethod(lambda message: unlocked.append(message))
     try:
-        commands = scala_cli_commands(work, java_home, arguments, platform, test, publish, mirror_options)
+        commands = scala_cli_commands(
+            work, java_home, arguments, platform, test, publish, mirror_options, user_home, extra
+        )
         output = run_all(commands, root, isolated_env(work, cache, offline=True), quiet=True)
     finally:
         server.shutdown()
@@ -299,18 +367,28 @@ def lock(args):
         cache = run_dir / "cache"
         cache.mkdir(parents=True)
         environment = isolated_env(run_dir, cache, offline=False)
-        platform = detect_platform(root, run_dir, java_home, arguments, environment)
+        user_home = home_override()
+        platform, resolvers = detect_platform(root, run_dir, java_home, arguments, environment, user_home)
         print(f"scala-cli-purifier: building for {platform} with an empty coursier cache", file=sys.stderr)
-        commands = scala_cli_commands(run_dir, java_home, arguments, platform, test, publish)
+        commands = scala_cli_commands(run_dir, java_home, arguments, platform, test, publish, user_home=user_home)
         if run_all(commands, root, environment, quiet=False) is not None:
             raise PurifierError("the lock run failed; see scala-cli's output above")
+
+        # Coursier reads local repositories in place; the files the class
+        # path reaches into are recorded with their hashes.
+        found = local_repositories.roots(resolvers, local_repositories.user_home(), run_dir / "home")
+        class_paths = class_path(root, run_dir, java_home, arguments, platform, False, environment, user_home)
+        if test:
+            class_paths += class_path(root, run_dir, java_home, arguments, platform, True, environment, user_home)
+        locals_ = local_repositories.record(found, class_paths)
+        sources = {repo["name"]: repo["root"] for repo in found}
 
         files = coursier_cache.downloaded_files(cache)
         fetched = [p for p in files if not coursier_cache.is_version_listing(p)]
         listings = [p for p in files if coursier_cache.is_version_listing(p)]
         print("scala-cli-purifier: checking the build offline from the recorded files", file=sys.stderr)
         check = (root, java_home, arguments, platform, test, publish, cache)
-        output = check_offline(*check, fetched, tmp / "check")
+        output = check_offline(*check, fetched, tmp / "check", locals_, sources)
         inlined = []
         if output is not None and listings:
             # The project needs version listings, for a version range or a
@@ -318,7 +396,7 @@ def lock(args):
             # version is published, so the lock keeps the listings this run
             # read as inline entries, and the offline build resolves to the
             # versions this run picked.
-            output = check_offline(*check, files, tmp / "check-listings")
+            output = check_offline(*check, files, tmp / "check-listings", locals_, sources)
             inlined = listings
             print(
                 "scala-cli-purifier: the offline build needs version listings; the lockfile holds them inline:\n"
@@ -327,7 +405,10 @@ def lock(args):
             )
         if output is not None:
             sys.stderr.write(output)
-            raise PurifierError("the project does not build offline from the files the lock run downloaded")
+            raise PurifierError(
+                "the project does not build offline from the files the lock run downloaded"
+                " and the files it read from local repositories"
+            )
         artifacts = coursier_cache.entries(cache, fetched) + coursier_cache.inline_entries(cache, inlined)
         artifacts.sort(key=lambda e: e["path"])
         published = published_files(run_dir / "publication") if publish else []
@@ -342,6 +423,7 @@ def lock(args):
         "test": test,
         "publish": publish,
         "publication": published,
+        "localRepositories": locals_,
         "artifacts": artifacts,
     }
     (root / LOCK_FILE).write_text(json.dumps(lockfile, indent=2) + "\n")
@@ -416,9 +498,11 @@ def exec_(args):
     urls = [a["url"] for a in locked["artifacts"] if "url" in a]
     mirror_options, server = start_mirror(cache, work / "mirror", urls, java_home)
     try:
+        # exec reads local repositories in place, from the home scala-cli
+        # reads them from.
         argv = [
             env("SCALA_CLI_PURIFIER_SCALA_CLI"),
-            *java_properties(work, mirror_options),
+            *java_properties(work, mirror_options, home_override()),
             command,
             *common_options(java_home, locked.get("platform", "JVM"), offline=True),
             *rest,

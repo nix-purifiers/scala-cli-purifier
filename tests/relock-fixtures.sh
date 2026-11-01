@@ -21,11 +21,14 @@ lock() {
 }
 
 fixtures=("$@")
-[ ${#fixtures[@]} -gt 0 ] || fixtures=(hello script sources url js native library)
+[ ${#fixtures[@]} -gt 0 ] || fixtures=(hello script sources url local js native library)
 for fixture in "${fixtures[@]}"; do
   case $fixture in
     hello | js | native) lock "$fixture" --test ;;
     library) lock "$fixture" --publish ;;
+    # The local fixture reads ivy2Local and m2Local of tests/fixtures/local-home
+    # (tests/local-libraries/publish.sh writes them).
+    local) SCALA_CLI_PURIFIER_USER_HOME="$PWD/tests/fixtures/local-home" lock "$fixture" ;;
     *) lock "$fixture" ;;
   esac
 done

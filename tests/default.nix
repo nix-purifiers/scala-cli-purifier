@@ -34,6 +34,16 @@ let
   # a HEAD request that the offline mirror answers in the sandbox.
   url = buildScalaCliProject { src = ./fixtures/url; };
 
+  # Dependencies from ivy2Local and m2Local, which the build is given as
+  # directories; the lock was made with those of fixtures/local-home.
+  local = buildScalaCliProject {
+    src = ./fixtures/local;
+    localRepositories = {
+      ivy2Local = ./fixtures/local-home/.ivy2/local;
+      m2Local = ./fixtures/local-home/.m2/repository;
+    };
+  };
+
   # A Scala.js program, linked on the JVM and run on Node.js, whose munit
   # suite runs on Node.js in the build.
   js = buildScalaCliProject { src = ./fixtures/js; };
@@ -96,6 +106,11 @@ in
   ];
 
   url-runs = runs "url-runs" url.package [ "geny from a URL: 2,4,6" ];
+
+  local-runs = runs "local-runs" local.package [
+    "FROM IVY2LOCAL!"
+    "from m2local..."
+  ];
 
   js-runs = runs "js-runs" js.package [ "hello from Scala.js" ];
 

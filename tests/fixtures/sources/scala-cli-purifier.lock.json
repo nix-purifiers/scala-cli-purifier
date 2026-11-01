@@ -10,6 +10,7 @@
   "test": false,
   "publish": false,
   "publication": [],
+  "localRepositories": [],
   "artifacts": [
     {
       "path": "https/repo.clojars.org/hiccup/hiccup/1.0.5/hiccup-1.0.5.jar",

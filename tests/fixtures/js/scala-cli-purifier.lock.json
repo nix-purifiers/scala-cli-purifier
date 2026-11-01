@@ -10,6 +10,7 @@
   "test": true,
   "publish": false,
   "publication": [],
+  "localRepositories": [],
   "artifacts": [
     {
       "path": "https/repo1.maven.org/maven2/com/armanbilge/scalajs-importmap_2.13/0.1.1/scalajs-importmap_2.13-0.1.1.jar",
@@ -292,6 +293,18 @@
       "url": "https://repo1.maven.org/maven2/org/scala-js/scalajs-test-bridge_2.13/1.22.0/scalajs-test-bridge_2.13-1.22.0.pom",
       "mirrors": [],
       "hash": "sha256-scSjyCqbsgiVuezgBoFk5o3FOHDxlJAGB3cMKviWoGM="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-js/scalajs-test-interface_2.13/1.16.0/scalajs-test-interface_2.13-1.16.0.jar",
+      "url": "https://repo1.maven.org/maven2/org/scala-js/scalajs-test-interface_2.13/1.16.0/scalajs-test-interface_2.13-1.16.0.jar",
+      "mirrors": [],
+      "hash": "sha256-4iU3aWrcr/G1/35m+Ou1mwINGSGz+YPu7XE1v0tEUsM="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/org/scala-js/scalajs-test-interface_2.13/1.16.0/scalajs-test-interface_2.13-1.16.0.pom",
+      "url": "https://repo1.maven.org/maven2/org/scala-js/scalajs-test-interface_2.13/1.16.0/scalajs-test-interface_2.13-1.16.0.pom",
+      "mirrors": [],
+      "hash": "sha256-kbpkDTpQEa7/pDX78yBiodsZVr6WOSOK9ZYGqAE6ZNM="
     },
     {
       "path": "https/repo1.maven.org/maven2/org/scala-js/scalajs-test-interface_2.13/1.22.0/scalajs-test-interface_2.13-1.22.0.jar",
