@@ -4,7 +4,8 @@
 A purifier's lock run points COURSIER_CACHE at an empty directory, runs the
 build tool, and turns every file the tool downloaded into an entry
 {"path", "url", "mirrors", "hash"}: the file's place in the cache, the URL
-coursier downloaded it from, no fallback URLs, and its SRI sha256 hash. The Nix side fetches each URL
+coursier downloaded it from, the URLs of mirrors that serve the same file,
+and its SRI sha256 hash. The Nix side fetches each URL
 and places the file at its path, which rebuilds the cache. Version listings
 the build needs become inline entries {"path", "contents"} instead.
 
@@ -108,15 +109,31 @@ def is_version_listing(path):
     return Path(path).name.startswith("maven-metadata")
 
 
+CHECKSUM_SUFFIXES = (".sha1", ".md5", ".sha256", ".sha512")
+
+
 def downloaded_files(cache_dir):
     """Every downloaded file under `cache_dir`, as sorted cache-relative
-    paths with `/` separators."""
-    found = []
+    paths with `/` separators.
+
+    A checksum file (`<file>.sha1`, `.md5`, `.sha256`, `.sha512`) of
+    another downloaded file is left out. Coursier keeps the checksums it
+    fetches as plain files or as hidden bookkeeping files, depending on the
+    repository and on whether it reached it through a mirror, and an
+    offline build reads no checksum, since Nix checks each file by its
+    SHA-256; leaving them out gives the same entries whichever way the lock
+    run reached the repository.
+    """
+    found = set()
     for dirpath, _, filenames in os.walk(cache_dir):
         for name in filenames:
             if not is_bookkeeping(name):
-                found.append(Path(dirpath, name).relative_to(cache_dir).as_posix())
-    return sorted(found)
+                found.add(Path(dirpath, name).relative_to(cache_dir).as_posix())
+    return sorted(
+        p
+        for p in found
+        if not (p.endswith(CHECKSUM_SUFFIXES) and p.rsplit(".", 1)[0] in found)
+    )
 
 
 def sri_sha256(file):
@@ -128,29 +145,59 @@ def sri_sha256(file):
     return "sha256-" + base64.b64encode(digest.digest()).decode()
 
 
-def entries(cache_dir, paths=None):
+def canonical(path, mirrors=None):
+    """The canonical cache path and URL of a downloaded file, and the URLs of
+    its mirrors.
+
+    `mirrors` maps the base URL of a repository, such as
+    https://repo1.maven.org/maven2 for Maven Central, to the base URLs of
+    mirrors that serve the same files. A file coursier downloaded from a
+    mirror is recorded under the URL and cache path of the repository, which
+    an offline build that names the repository reads, with the URL of each
+    mirror as a fallback.
+    """
+    url = url_of(path)
+    for base, alternates in (mirrors or {}).items():
+        base = base.rstrip("/")
+        alternates = [a.rstrip("/") for a in alternates]
+        for prefix in [base, *alternates]:
+            if url.startswith(prefix + "/"):
+                rest = url[len(prefix) :]
+                return cache_path(base + rest), base + rest, [a + rest for a in alternates]
+    return path, url, []
+
+
+def entries(cache_dir, paths=None, mirrors=None):
     """The lockfile entries of a cache, sorted by path.
 
-    Each entry is a dict with `path`, `url`, `mirrors` and `hash`. Coursier
-    downloads each file from one URL, so `mirrors`, the fallback URLs of the
-    shared lockfile format, is empty. `paths` limits the entries to those
-    cache-relative paths; the default is every downloaded file.
+    Each entry is a dict with `path`, `url`, `mirrors` and `hash`: the
+    canonical cache path and URL (see `canonical`), the URLs of the mirrors
+    that serve the same bytes, and the SRI hash. `paths` limits the entries
+    to those cache-relative paths; the default is every downloaded file.
     """
     cache_dir = Path(cache_dir)
-    selected = downloaded_files(cache_dir) if paths is None else sorted(paths)
-    return [{"path": p, "url": url_of(p), "mirrors": [], "hash": sri_sha256(cache_dir / p)} for p in selected]
+    selected = downloaded_files(cache_dir) if paths is None else paths
+    result = []
+    for p in selected:
+        path, url, alternates = canonical(p, mirrors)
+        result.append({"path": path, "url": url, "mirrors": alternates, "hash": sri_sha256(cache_dir / p)})
+    return sorted(result, key=lambda e: e["path"])
 
 
-def inline_entries(cache_dir, paths):
+def inline_entries(cache_dir, paths, mirrors=None):
     """Inline lockfile entries for `paths` of a cache, sorted by path.
 
-    Each entry is a dict with `path` and `contents`, the file's text. A lock
-    run keeps version listings this way when the offline build needs them:
-    the listing's URL serves new content once a version is published, so
-    the lockfile records the listing the lock run read rather than a hash.
+    Each entry is a dict with `path`, the canonical cache path, and
+    `contents`, the file's text. A lock run keeps version listings this way
+    when the offline build needs them: the listing's URL serves new content
+    once a version is published, so the lockfile records the listing the
+    lock run read rather than a hash.
     """
     cache_dir = Path(cache_dir)
-    return [{"path": p, "contents": (cache_dir / p).read_text(encoding="utf-8")} for p in sorted(paths)]
+    result = [
+        {"path": canonical(p, mirrors)[0], "contents": (cache_dir / p).read_text(encoding="utf-8")} for p in paths
+    ]
+    return sorted(result, key=lambda e: e["path"])
 
 
 def java_proxy_properties(environ=None):

@@ -90,6 +90,61 @@ class EntriesTests(unittest.TestCase):
             )
 
 
+    def test_checksums_of_downloads_are_left_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            version = cache / "https/maven.google.com/androidx/annotation/annotation-jvm/1.9.1"
+            version.mkdir(parents=True)
+            for name in (
+                "annotation-jvm-1.9.1.jar",
+                "annotation-jvm-1.9.1.jar.sha1",
+                "annotation-jvm-1.9.1.jar.md5",
+                "annotation-jvm-1.9.1.pom.sha256",
+            ):
+                (version / name).write_bytes(b"")
+            self.assertEqual(
+                [Path(p).name for p in cc.downloaded_files(cache)],
+                # A checksum whose file was not downloaded stays.
+                ["annotation-jvm-1.9.1.jar", "annotation-jvm-1.9.1.pom.sha256"],
+            )
+
+    def test_mirrored_entries(self):
+        central = "https://repo1.maven.org/maven2"
+        google = "https://maven-central.storage-download.googleapis.com/maven2"
+        mirrors = {central: [google]}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            mirrored = cache / "https/maven-central.storage-download.googleapis.com/maven2/a/b/1.0/b-1.0.jar"
+            mirrored.parent.mkdir(parents=True)
+            mirrored.write_bytes(b"")
+            direct = cache / "https/repo1.maven.org/maven2/a/c/1.0/c-1.0.jar"
+            direct.parent.mkdir(parents=True)
+            direct.write_bytes(b"")
+            other = cache / "https/repo.clojars.org/x/y/1.0/y-1.0.jar"
+            other.parent.mkdir(parents=True)
+            other.write_bytes(b"")
+            result = cc.entries(cache, mirrors=mirrors)
+            self.assertEqual(
+                [(e["path"], e["url"], e["mirrors"]) for e in result],
+                [
+                    (
+                        "https/repo.clojars.org/x/y/1.0/y-1.0.jar",
+                        "https://repo.clojars.org/x/y/1.0/y-1.0.jar",
+                        [],
+                    ),
+                    (
+                        "https/repo1.maven.org/maven2/a/b/1.0/b-1.0.jar",
+                        f"{central}/a/b/1.0/b-1.0.jar",
+                        [f"{google}/a/b/1.0/b-1.0.jar"],
+                    ),
+                    (
+                        "https/repo1.maven.org/maven2/a/c/1.0/c-1.0.jar",
+                        f"{central}/a/c/1.0/c-1.0.jar",
+                        [f"{google}/a/c/1.0/c-1.0.jar"],
+                    ),
+                ],
+            )
+
     def test_inline_entries(self):
         with tempfile.TemporaryDirectory() as tmp:
             cache = Path(tmp)

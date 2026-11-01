@@ -18,11 +18,14 @@ The repository is a caisson flake, laid out like sbt-nix-backend.
     resolvers, records the files its class path reaches into, and stages
     them with their hashes checked, in the offline check and in the Nix
     build.
-- `nix/lib/` is the Nix library. `lock.nix` reads a lockfile, `fetch.nix`
-  fetches one locked file, `dependencies.nix` builds the coursier cache of a
-  lockfile, `realize.nix` is what `exec` builds without nixpkgs,
-  `publication.nix` is what `publish` builds, and
-  `build-scala-cli-project.nix` is `buildScalaCliProject`.
+- `nix/lib/` is the Nix library. `lock.nix` reads a lockfile and checks its
+  format version and checksum, `realize.nix` is what `exec` builds without
+  a nixpkgs package set, `publication.nix` is what `publish` builds, and
+  `build-scala-cli-project.nix` is `buildScalaCliProject`. The shared
+  [purifier](https://github.com/nix-purifiers/purifier) library fetches the
+  locked files and lays them out: the builder takes it as `lib.purifier` of
+  the flake, and `exec` and `publish` import its root `default.nix` at the
+  revision of the flake's `flake.lock`.
 - `pkg-overlays/default/` adds the packages of `pkgs/` under
   `pkgs.scala-cli-purifier` and `buildScalaCliProject` beside them.
 - `tests/` holds the flake checks, the fixtures and their lockfiles.

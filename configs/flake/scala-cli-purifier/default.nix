@@ -63,7 +63,7 @@
           {
             checks = import ../../../tests {
               inherit pkgs;
-              overlay = self.overlays.default;
+              flakeLib = self.lib;
               inherit (self.packages.${system}) cli;
             };
             treefmt.programs.nixfmt.enable = true;

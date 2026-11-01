@@ -1,75 +1,54 @@
 # SPDX-License-Identifier: MIT
 #
 # buildScalaCliProject: the sandboxed build of a scala-cli project, from the
-# lockfile `scala-cli-purifier lock` writes at the project root.
+# lockfile `scala-cli-purifier lock` writes at the project root. The flake
+# publishes it as lib.scala-cli-purifier.buildScalaCliProject:
 #
-# The file is a package for callPackage: the first argument set is what it
-# takes from the package set, and the result is the builder. The
-# scala-cli-purifier overlay (`overlays.default`) adds it to the package set
-# as `buildScalaCliProject`, so a package written for callPackage takes it
-# like any other dependency:
+#   lib.scala-cli-purifier.buildScalaCliProject { inherit pkgs; src = ./.; }
 #
-#   { buildScalaCliProject }: (buildScalaCliProject { src = ./.; }).package
+# The first argument set is the library: `lib` and `purifier`, the library
+# the nix-purifiers share. The builder returns
 #
-# and `buildScalaCliProject.override` replaces what it takes from the set.
-# The builder returns
-#
-#   dependencies      the coursier cache of every locked artifact
-#   package           the project's program, packaged for its platform:
+#   packages.<name>   the project's program, under the name the lock
+#                     records, packaged for its platform:
 #                     JVM     share/java/<name>.jar, an assembly, and
 #                             bin/<name>, which runs it on the JDK
 #                     JS      share/<name>/<name>.js, linked by Scala.js,
 #                             and bin/<name>, which runs it on Node.js
 #                     Native  bin/<name>, linked by Scala Native
-#   packages.<name>   the same package, under the name the lock records
-#   publication       what `scala-cli publish` writes, as a Maven
+#   tests             the project's test run (`scala-cli test`) in the
+#                     sandbox; it needs a lock made with --test
+#   release           what `scala-cli publish` writes, as a Maven
 #                     repository directory: the project's jar, sources,
 #                     Scaladoc and POM, with checksums. It needs a lock made
 #                     with --publish; `scala-cli-purifier publish` uploads it.
+#   fetches           the lockfile's entries, in the format of the purifier
+#                     library: what the build fetches
 #   artifacts         every output file by name, known from the lock before
 #                     anything is built: `program` (bin/<name>), the
 #                     program's `<name>.jar` or `<name>.js`, and each file
-#                     of the publication under its name without the
-#                     version, such as `greeting_3.jar`,
-#                     `greeting_3-sources.jar` or `greeting_3.pom`.
-#                     `package.artifacts` and `publication.artifacts` hold
-#                     each half.
-#   jdk               the JDK the build runs on and a JVM program runs with
+#                     of the release under its name without the version,
+#                     such as `greeting_3.jar`, `greeting_3-sources.jar` or
+#                     `greeting_3.pom`
+{ lib, purifier }:
 {
-  lib,
-  stdenvNoCC,
-  callPackage,
-  makeWrapper,
-  # The JDKs a build can run on; the default JDK of a build is the headless
-  # one of the major version its lock was made with.
-  javaPackages,
-  # The scala-cli the lock was made with. scala-cli downloads tools of its
-  # own version, so another version would ask for files the lock lacks.
-  scala-cli,
-  # Scala.js programs and tests run on Node.js.
-  nodejs,
-  # Scala Native compiles and links with clang, which it finds with `which`.
-  clang,
-  which,
-  # The offline mirror (pkgs/cli/offline_mirror.py) runs on Python and makes
-  # its certificates with openssl.
-  python3,
-  openssl,
-}:
-{
+  # The nixpkgs package set the build runs with.
+  pkgs,
   # The root of the scala-cli project.
   src,
+  # Fetchers that replace the fetchers of nixpkgs, passed to the `tree` of
+  # the purifier library; `fetchurl` takes the arguments the fetchurl of
+  # nixpkgs takes, so a replacement can send credentials or use a company
+  # mirror.
+  fetchers ? { },
   # The lockfile; the default is the one `scala-cli-purifier lock` writes at
   # the project root.
   lockFile ? src + "/scala-cli-purifier.lock.json",
   # The JDK that runs scala-cli's compiler and a JVM program.
   jdk ? null,
-  # Replaces the built-in fetcher; see fetch.nix.
-  fetchurl ? null,
-  # Runs the project's tests (`scala-cli test`) in the build. The default is
-  # whether the lock was made with `--test`, which locks the test
-  # dependencies too.
-  doCheck ? null,
+  # The scala-cli the lock was made with. scala-cli downloads tools of its
+  # own version, so another version would ask for files the lock lacks.
+  scala-cli ? pkgs.scala-cli,
   # Filters the project root before it is copied into the store, as the
   # `filter` of builtins.path. The default leaves out build outputs, editor
   # state and the purifier's own state.
@@ -82,6 +61,18 @@
   localRepositories ? { },
 }:
 let
+  inherit (pkgs)
+    stdenvNoCC
+    makeWrapper
+    javaPackages
+    nodejs
+    clang
+    which
+    python3
+    openssl
+    strip-nondeterminism
+    ;
+
   lock = import ./lock.nix { inherit lockFile; };
   platform = lock.platform or "JVM";
   name = lock.name;
@@ -120,7 +111,16 @@ let
   jdk' = if jdk != null then jdk else defaultJdk;
   javaHome = jdk'.home or jdk';
 
-  dependencies = callPackage ./dependencies.nix { inherit lockFile fetchurl; };
+  # The coursier cache: every locked file at its coursier-cache path, as a
+  # link into the store.
+  dependencies = purifier.tree (
+    {
+      inherit pkgs;
+      name = "scala-cli-coursier-cache";
+      entries = lock.artifacts;
+    }
+    // fetchers
+  );
 
   # The options of every scala-cli invocation; `scala-cli-purifier lock`
   # runs scala-cli the same way (pkgs/cli/scala_cli_purifier.py,
@@ -140,13 +140,14 @@ let
     command:
     ''scala-cli -Djava.io.tmpdir="$TMPDIR/java-tmp" -Duser.home="$TMPDIR/user-home" $mirrorOptions ${command} ${lib.escapeShellArgs common} ${localRepositoryOptions}'';
 
-  # The offline mirror, the staging of local repositories, and the coursier
-  # cache module both import.
+  # The offline mirror, the staging of local repositories, the lockfile
+  # checks, and the coursier cache module they import.
   mirrorSource = lib.fileset.toSource {
     root = ../../pkgs/cli;
     fileset = lib.fileset.unions [
       ../../pkgs/cli/offline_mirror.py
       ../../pkgs/cli/local_repositories.py
+      ../../pkgs/cli/lockfile.py
       ../../pkgs/cli/coursier_cache.py
     ];
   };
@@ -184,18 +185,6 @@ let
       }";
       target = localTarget repo;
     }) locals
-  );
-
-  # The hosts of the locked URLs, which the offline mirror makes
-  # certificates for.
-  hosts = lib.unique (
-    lib.concatMap (
-      a:
-      let
-        m = builtins.match "https?://([^/:]+).*" a.url;
-      in
-      if m == null then [ ] else m
-    ) lock.fetched
   );
 
   packageOptions =
@@ -236,7 +225,7 @@ let
     mkdir -p "$TMPDIR/user-home"
     ${python3.interpreter} -I ${mirrorSource}/local_repositories.py stage "$localSpecPath" "$TMPDIR"
     PATH="${jdk'}/bin:$PATH" ${python3.interpreter} -I ${mirrorSource}/offline_mirror.py \
-      "$COURSIER_CACHE" "$TMPDIR/mirror" ${lib.escapeShellArgs hosts} &
+      "$COURSIER_CACHE" "$TMPDIR/mirror" ${lockFile} &
     mirrorPid=$!
     for _ in $(seq 300); do
       [ -s "$TMPDIR/mirror/java-options" ] && break
@@ -244,12 +233,76 @@ let
       sleep 0.1
     done
     mirrorOptions=$(tr '\n' ' ' < "$TMPDIR/mirror/java-options")
+
+    # Runs a scala-cli command; when it fails for want of a file, the
+    # lockfile lacks a download the build needs.
+    runScalaCli() {
+      local status=0
+      "$@" 2>&1 | tee -a "$TMPDIR/scala-cli.log" || status=''${PIPESTATUS[0]}
+      if [ "$status" -ne 0 ]; then
+        if grep -q -e 'Error downloading' -e 'not found:' -e 'is not in the locked downloads' "$TMPDIR/scala-cli.log"; then
+          echo "scala-cli-purifier: scala-cli needs a file the lockfile does not hold, so the lockfile is incomplete." >&2
+          echo "Run \`scala-cli-purifier lock\` in the project and commit the lockfile." >&2
+        fi
+        exit "$status"
+      fi
+    }
+
+    # Fails with what to run when the project's `//> using` directives
+    # changed since the lock.
+    checkDirectives() {
+      ${python3.interpreter} -I ${mirrorSource}/lockfile.py check-directives "$PWD" ${lockFile}
+    }
   '';
   stopMirror = ''kill "$mirrorPid" 2>/dev/null || true'';
 
-  installPhase =
+  # A derivation that runs scala-cli on the project in the environment
+  # above: `run` holds its commands, `install` what goes into $out.
+  step =
+    {
+      pname,
+      run,
+      install,
+      extraInputs ? [ ],
+      passthru ? (_: { }),
+      meta ? { },
+    }:
+    stdenvNoCC.mkDerivation (finalAttrs: {
+      inherit pname;
+      version = "locked";
+      src = filteredSrc;
+      nativeBuildInputs = [
+        scala-cli
+        openssl
+      ]
+      ++ platformInputs
+      ++ extraInputs;
+      dontConfigure = true;
+      inherit localSpec;
+      passAsFile = [ "localSpec" ];
+      postUnpack = setup;
+      buildPhase = ''
+        runHook preBuild
+        checkDirectives
+        ${run}
+        ${stopMirror}
+        runHook postBuild
+      '';
+      installPhase = ''
+        runHook preInstall
+        ${install}
+        runHook postInstall
+      '';
+      passthru = passthru finalAttrs;
+      inherit meta;
+    });
+
+  installProgram =
     {
       JVM = ''
+        # Jars hold the time each entry was written; normalizing them makes
+        # a rebuild give the same bytes.
+        strip-nondeterminism --type jar "$TMPDIR/out/program.jar"
         install -Dm644 "$TMPDIR/out/program.jar" "$out/share/java/${name}.jar"
         makeWrapper ${jdk'}/bin/java "$out/bin/${name}" \
           --add-flags "-jar $out/share/java/${name}.jar"
@@ -279,113 +332,90 @@ let
   }
   .${platform};
 
-  # The files of the publication by name, relative to its output, as the
-  # lock run recorded them.
-  publicationFiles = builtins.listToAttrs (
+  # The files of the release by name, relative to its output, as the lock
+  # run recorded them.
+  releaseFiles = builtins.listToAttrs (
     map (f: {
       inherit (f) name;
       value = f.path;
     }) (lock.publication or [ ])
   );
 
-  package = stdenvNoCC.mkDerivation (finalAttrs: {
+  package = step {
     pname = name;
-    version = "locked";
-    src = filteredSrc;
-    nativeBuildInputs = [
-      scala-cli
+    extraInputs = [
       makeWrapper
-      openssl
-    ]
-    ++ platformInputs;
-    dontConfigure = true;
-    inherit localSpec;
-    passAsFile = [ "localSpec" ];
-    postUnpack = setup;
-
-    buildPhase = ''
-      runHook preBuild
-      ${scalaCli "package"} ${packageOptions} -f ${lib.escapeShellArgs lock.arguments} </dev/null
-      runHook postBuild
+      strip-nondeterminism
+    ];
+    run = ''
+      runScalaCli ${scalaCli "package"} ${packageOptions} -f ${lib.escapeShellArgs lock.arguments} </dev/null
     '';
-
-    doCheck = if doCheck != null then doCheck else lock.test;
-    checkPhase = ''
-      runHook preCheck
-      ${scalaCli "test"} ${lib.escapeShellArgs lock.arguments} </dev/null
-      runHook postCheck
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      ${stopMirror}
-      ${installPhase}
-      runHook postInstall
-    '';
-
-    passthru = {
-      inherit dependencies lock;
-      jdk = jdk';
+    install = installProgram;
+    passthru = finalAttrs: {
       artifacts = builtins.mapAttrs (_: rel: "${finalAttrs.finalPackage}/${rel}") programFiles;
     };
     meta = {
       description = "${name}, built by scala-cli-purifier";
       mainProgram = name;
     };
-  });
+  };
 
-  publication =
+  tests =
+    assert
+      lock.test or false
+      || throw "scala-cli-purifier: ${toString lockFile} was not made with --test, so it lacks what `scala-cli test` downloads; re-lock with `scala-cli-purifier lock --test`.";
+    step {
+      pname = "${name}-tests";
+      run = ''
+        runScalaCli ${scalaCli "test"} ${lib.escapeShellArgs lock.arguments} </dev/null
+      '';
+      install = ''
+        mkdir -p $out
+        cp "$TMPDIR/scala-cli.log" $out/test.log
+      '';
+      meta.description = "the tests of ${name}, run by scala-cli-purifier";
+    };
+
+  release =
     assert
       lock.publish or false
       || throw "scala-cli-purifier: ${toString lockFile} was not made with --publish, so it lacks what `scala-cli publish` downloads; re-lock with `scala-cli-purifier lock --publish`.";
-    stdenvNoCC.mkDerivation (finalAttrs: {
-      pname = "${name}-publication";
-      version = "locked";
-      src = filteredSrc;
-      nativeBuildInputs = [
-        scala-cli
-        openssl
-      ]
-      ++ platformInputs;
-      dontConfigure = true;
-      dontInstall = true;
-      # The output is jars, POMs and checksums of them; fixup must not
-      # change them.
-      dontFixup = true;
-      inherit localSpec;
-      passAsFile = [ "localSpec" ];
-      postUnpack = setup;
-      buildPhase = ''
-        runHook preBuild
-        mkdir -p $out
-        ${scalaCli "publish"} --publish-repository "file://$out" ${lib.escapeShellArgs lock.arguments} </dev/null
-        ${stopMirror}
-        for rel in ${lib.escapeShellArgs (builtins.attrValues publicationFiles)}; do
+    step {
+      pname = "${name}-release";
+      extraInputs = [ strip-nondeterminism ];
+      run = ''
+        runScalaCli ${scalaCli "publish"} --publish-repository "file://$TMPDIR/release" ${lib.escapeShellArgs lock.arguments} </dev/null
+      '';
+      install = ''
+        cp -r "$TMPDIR/release" $out
+        chmod -R u+w $out
+        # Jars hold the time each entry was written; normalizing them makes
+        # a rebuild give the same bytes, and the checksums are written again
+        # for the normalized files.
+        find $out -name '*.jar' -print0 | xargs -0 -r strip-nondeterminism --type jar
+        find $out -type f ! -name '*.md5' ! -name '*.sha1' | while read -r file; do
+          if [ -f "$file.sha1" ]; then sha1sum "$file" | cut -d' ' -f1 | tr -d '\n' > "$file.sha1"; fi
+          if [ -f "$file.md5" ]; then md5sum "$file" | cut -d' ' -f1 | tr -d '\n' > "$file.md5"; fi
+        done
+        for rel in ${lib.escapeShellArgs (builtins.attrValues releaseFiles)}; do
           if [ ! -f "$out/$rel" ]; then
             echo "scala-cli-purifier: the lock names $rel, which this build did not publish; re-lock with --publish" >&2
             exit 1
           fi
         done
-        runHook postBuild
       '';
-      passthru = {
-        inherit dependencies lock;
-        artifacts = builtins.mapAttrs (_: rel: "${finalAttrs.finalPackage}/${rel}") publicationFiles;
+      passthru = finalAttrs: {
+        artifacts = builtins.mapAttrs (_: rel: "${finalAttrs.finalPackage}/${rel}") releaseFiles;
       };
-      meta.description = "the publication of ${name}, built by scala-cli-purifier";
-    });
+      meta.description = "the release of ${name}, built by scala-cli-purifier";
+    };
 in
 assert
   scala-cli.version == lock.scalaCliVersion
-  || throw "scala-cli-purifier: ${toString lockFile} was made with scala-cli ${lock.scalaCliVersion}, and the package set's scala-cli is ${scala-cli.version}. Re-lock with the scala-cli-purifier revision whose overlay provides this builder, or pass that scala-cli through buildScalaCliProject.override.";
+  || throw "scala-cli-purifier: ${toString lockFile} was made with scala-cli ${lock.scalaCliVersion}, and the build's scala-cli is ${scala-cli.version}. Re-lock with the scala-cli-purifier whose flake provides this builder, or pass that scala-cli as `scala-cli`.";
 {
-  inherit
-    lock
-    dependencies
-    package
-    publication
-    ;
   packages.${name} = package;
-  artifacts = package.artifacts // lib.optionalAttrs (lock.publish or false) publication.artifacts;
-  jdk = jdk';
+  inherit tests release;
+  fetches = lock.artifacts;
+  artifacts = package.artifacts // lib.optionalAttrs (lock.publish or false) release.artifacts;
 }

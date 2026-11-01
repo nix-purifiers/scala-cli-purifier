@@ -147,9 +147,11 @@ returns:
   `greeting_3.pom`;
 - `dependencies`, the coursier cache of the locked files.
 
-It takes `lockFile`, `jdk`, `fetchurl` (for credentials or mirrors),
-`doCheck`, `srcFilter` and `localRepositories`;
-`nix/lib/build-scala-cli-project.nix` documents each one. A project that
+It takes `lockFile`, `jdk`, `doCheck`, `srcFilter` and
+`localRepositories`; `nix/lib/build-scala-cli-project.nix` documents each
+one. `buildScalaCliProject.override { fetchurl = ...; }` replaces the
+fetcher of the locked files, for credentials or other mirrors; the
+replacement takes the arguments nixpkgs' `fetchurl` takes. A project that
 reads local repositories takes each one by the name the lockfile gives it:
 
 ```nix
@@ -176,10 +178,53 @@ nix run github:nix-purifiers/scala-cli-purifier -- exec run .
 
 `exec` fetches the locked files through Nix, links them into a coursier
 cache under `.scala-cli-purifier/` with one GC root, and runs the scala-cli
-command offline on them, through the offline mirror. A dependency that is
-not in the lockfile fails to resolve, and `lock` adds it. `exec` runs
-scala-cli without its Bloop build server (`--server=false`), as the lock
-run and the Nix build do, so the lockfile holds no Bloop downloads.
+command offline on them, through the offline mirror. `exec` runs scala-cli
+without its Bloop build server (`--server=false`), as the lock run and the
+Nix build do, so the lockfile holds no Bloop downloads.
+
+The everyday loop is `exec run .`, `exec test .` and `exec compile .`.
+After adding or upgrading a dependency, run `lock` again: until then,
+`exec` and the Nix build refuse to run, because the project's
+`//> using` directives no longer match the ones the lockfile was made
+from.
+
+### Editors
+
+```zsh
+scala-cli-purifier setup-ide .
+```
+
+configures Metals, or any other editor that speaks the Build Server
+Protocol, to build the project offline on the locked downloads. The lock
+run opens the project the way an editor does, through scala-cli's build
+server, so the lockfile holds what an editor asks for and no build needs,
+such as the sources jars of the dependencies; its offline check opens the
+project again and requires every dependency source to be there.
+`lock --no-ide` skips both, for a lockfile without them. It runs
+`scala-cli setup-ide` through `exec`, then points the launch command in
+`.bsp/scala-cli.json` at `scala-cli-purifier exec bsp`, so the build server
+starts with the locked cache and the offline mirror. Run it again after
+`lock`.
+
+### Mistakes and their errors
+
+| Mistake | Error |
+|---|---|
+| A dependency was added or changed after the lock | `exec` and the Nix build say the project's `//> using` directives changed since the lock, and to run `scala-cli-purifier lock` |
+| The lockfile was edited by hand | `exec` and Nix evaluation say its checksum does not match its content, and to run `scala-cli-purifier lock` |
+| The lockfile is not JSON | `exec` says so, and to run `scala-cli-purifier lock`; Nix reports the JSON parse error |
+| The lockfile lacks a file the build needs | the Nix build says the lockfile is incomplete, and to run `scala-cli-purifier lock` |
+| The lockfile was made with another scala-cli | `exec` and Nix evaluation name both versions, and say to re-lock |
+| A local repository directory differs from the locked one | the Nix build names the file whose hash differs, and to re-lock |
+
+### Relocking behind a busy Maven Central
+
+`SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR` makes the lock run download the
+files of Maven Central from a mirror, such as Google's mirror at
+`https://maven-central.storage-download.googleapis.com/maven2`. The
+lockfile still records each file under its Maven Central URL and cache
+path, with the URL of the mirror in `mirrors`, which the Nix build falls
+back to.
 
 ### Publishing
 
@@ -207,8 +252,9 @@ is compiled outside the sandbox.
   `/tmp`, whatever `java.io.tmpdir` says, so locking a Scala.js project or
   a lock with `--publish` needs a writable `/tmp`. The Nix sandbox has one.
 - A repository that needs credentials locks when scala-cli has them, and
-  the Nix build fetches from it when `fetchurl` supplies them (nixpkgs'
-  `fetchurl` takes `netrcPhase`). A download URL that carries credentials
+  the Nix build fetches from it when a `fetchurl` passed through
+  `buildScalaCliProject.override` supplies them (nixpkgs' `fetchurl` takes
+  `netrcPhase`). A download URL that carries credentials
   in its host part cannot be locked.
 - The lock records a local repository by the module version directories
   of the class path. A module whose descriptor names a parent POM in
@@ -226,8 +272,10 @@ The design comes from
 [sbt-nix-backend](https://github.com/clhodapp/sbt-nix-backend), now
 sbt-purifier: a lock run with an empty cache, a lockfile of every
 downloaded file, a builder that realizes those files as the tool's cache,
-an offline interactive mode, and publishing what Nix built. The Nix
-library follows its generic files. The purifier idea was inspired by
+an offline interactive mode, and publishing what Nix built. The locked
+files are fetched and laid out by
+[purifier](https://github.com/nix-purifiers/purifier), the library the
+nix-purifiers share. The purifier idea was inspired by
 nixcloud's [cargo (libnix)](https://github.com/nixcloud/cargo). The coursier
 cache code (`pkgs/cli/coursier_cache.py`) is shared with the Mill
 purifier.

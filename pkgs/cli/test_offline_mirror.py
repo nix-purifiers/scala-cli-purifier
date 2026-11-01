@@ -49,6 +49,21 @@ class MirrorTests(unittest.TestCase):
         self.assertEqual(self.request("HEAD", path), (200, b""))
         self.assertEqual(self.request("GET", path), (200, b"jar bytes"))
 
+    def test_alias(self):
+        # A mirror URL whose file the cache holds under the canonical path.
+        mirrored = "/maven2/com/example/lib/1.0/lib-1.0.jar?mirror"
+        offline_mirror.Handler.aliases["https://repo1.maven.org" + mirrored] = (
+            "https/repo1.maven.org/maven2/com/example/lib/1.0/lib-1.0.jar"
+        )
+        self.assertEqual(self.request("GET", mirrored), (200, b"jar bytes"))
+
+    def test_lock_aliases(self):
+        artifacts = [
+            {"path": "p", "url": "https://a/x", "mirrors": ["https://b/x"], "hash": "h"},
+            {"path": "q", "contents": "listing"},
+        ]
+        self.assertEqual(offline_mirror.lock_aliases(artifacts), {"https://a/x": "p", "https://b/x": "p"})
+
     def test_unlocked_url(self):
         self.assertEqual(self.request("HEAD", "/maven2/com/example/other/1.0/other-1.0.jar")[0], 404)
         self.assertTrue(any("other-1.0.jar" in line for line in self.logged))

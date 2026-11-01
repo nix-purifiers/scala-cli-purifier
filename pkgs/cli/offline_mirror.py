@@ -13,15 +13,16 @@ certificate authority made for this run, which the JVM trusts through
 URL's coursier cache path. A URL the cache lacks gets 404, and the proxy
 logs it, since it names a download the lockfile is missing.
 
-  python3 offline_mirror.py CACHE STATE HOST...
+  python3 offline_mirror.py CACHE STATE LOCKFILE
 
 writes the certificates and trust store to STATE, serves until killed, and
 writes the Java options for the build to STATE/java-options once it
-listens. The HOSTs are the hosts to make certificates for: every host of
-the lockfile's URLs.
+listens. It serves every URL of LOCKFILE, mirror URLs included, from the
+cache path the lockfile records, and makes certificates for their hosts.
 """
 
 import http.server
+import json
 import shutil
 import ssl
 import subprocess
@@ -90,6 +91,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     protocol_version = "HTTP/1.1"
     cache = Path(".")
+    aliases = {}
     origin = ""
     log = staticmethod(stderr_log)
 
@@ -97,8 +99,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self.origin + self.path if self.origin else self.path
 
     def file(self):
+        url = self.url()
+        if url in self.aliases:
+            return self.cache / self.aliases[url]
         try:
-            return self.cache / coursier_cache.cache_path(self.url())
+            return self.cache / coursier_cache.cache_path(url)
         except ValueError:
             return None
 
@@ -160,11 +165,14 @@ class Server(http.server.ThreadingHTTPServer):
     daemon_threads = True
 
 
-def start(cache, state, hosts, keytool, log=None):
+def start(cache, state, hosts, keytool, log=None, aliases=None):
     """Starts the mirror in a thread and returns the Java options that send
-    a JVM's requests to it, and the server, for shutdown()."""
+    a JVM's requests to it, and the server, for shutdown(). `aliases` maps
+    URLs to the cache paths of their files, for a URL whose file the cache
+    holds under another URL's path, such as a mirror's URL."""
     certificates, truststore = make_certificates(Path(state), sorted(set(hosts)), keytool)
     Handler.cache = Path(cache)
+    Handler.aliases = dict(aliases or {})
     Handler.log = staticmethod(log or stderr_log)
     ProxyHandler.certificates = certificates
     server = Server(("127.0.0.1", 0), ProxyHandler)
@@ -188,13 +196,28 @@ def hosts_of(urls):
     return sorted({urlsplit(u).hostname for u in urls if urlsplit(u).scheme in ("http", "https")})
 
 
+def lock_aliases(artifacts):
+    """The URL aliases of a lockfile's file entries: each entry's URL and
+    mirror URLs, mapped to its cache path."""
+    aliases = {}
+    for entry in artifacts:
+        if "url" in entry:
+            for url in [entry["url"], *entry.get("mirrors", [])]:
+                aliases[url] = entry["path"]
+    return aliases
+
+
 def main(argv):
-    cache, state, hosts = argv[1], Path(argv[2]), argv[3:]
+    if len(argv) != 4:
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    cache, state = argv[1], Path(argv[2])
+    aliases = lock_aliases(json.loads(Path(argv[3]).read_text())["artifacts"])
     keytool = shutil.which("keytool")
     if keytool is None:
         print("offline mirror: keytool is not on the PATH", file=sys.stderr)
         return 1
-    options, server = start(cache, state, hosts, keytool)
+    options, server = start(cache, state, hosts_of(aliases), keytool, aliases=aliases)
     (state / "java-options").write_text("\n".join(options) + "\n")
     try:
         threading.Event().wait()

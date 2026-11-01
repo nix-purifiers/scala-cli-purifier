@@ -1,22 +1,30 @@
 # SPDX-License-Identifier: MIT
-"""scala-cli-purifier: lock the downloads of a scala-cli project, run
-scala-cli on the locked downloads, and publish what Nix built.
+"""scala-cli-purifier: lock the downloads of a scala-cli project, prefetch
+them for offline work, and publish what Nix built.
 
-  scala-cli-purifier lock [--test] [--publish] [--name NAME] [--] [ARGS...]
-  scala-cli-purifier exec [--] COMMAND [ARGS...]
-  scala-cli-purifier publish [OPTIONS] REPOSITORY
+  scala-cli-purifier lock [--lockfile PATH] [--test] [--publish] [--no-ide]
+                          [--name NAME] [--] [ARGS...]
+  scala-cli-purifier prefetch [--lockfile PATH]
+  scala-cli-purifier publish [--lockfile PATH] [OPTIONS] REPOSITORY
 
 `lock` runs `scala-cli package` with an empty coursier cache (and
 `scala-cli test` with --test, and `scala-cli publish` to a local directory
-with --publish), records every file scala-cli downloaded in
-scala-cli-purifier.lock.json, and checks that the project builds offline
-from those files alone, the way the Nix build runs it. ARGS are the
-scala-cli inputs and options; the default input is the current directory.
+with --publish), opens the project as an editor does (unless --no-ide),
+records every file scala-cli downloaded in scala-cli-purifier.lock.json,
+and checks that the project builds offline from those files alone, the way
+the Nix build runs it. ARGS are the scala-cli inputs and options; the
+default input is the current directory. --lockfile names another place for
+the lockfile, such as one outside the project; every command reads
+SCALA_CLI_PURIFIER_LOCKFILE when --lockfile is not given.
 
-`exec` runs a scala-cli command offline on the locked downloads, which it
-realizes through Nix into a coursier cache under .scala-cli-purifier/.
+`prefetch` realizes every file of the lockfile in the Nix store, with a GC
+root in .scala-cli-purifier/ beside the lockfile, so the everyday loop and the editor work
+offline. The package installs this program as `scala-cli` too: in a project
+with a lockfile it runs scala-cli on the prefetched downloads, offline, and
+elsewhere it is scala-cli itself. It reads SCALA_CLI_PURIFIER_LOCKFILE
+too.
 
-`publish` builds the project's publication in the Nix sandbox (the files
+`publish` builds the project's release in the Nix sandbox (the files
 `scala-cli publish` writes, from a lock made with --publish) and uploads
 those files to REPOSITORY: an http(s) Maven repository, which takes them
 by HTTP PUT, or a directory (a path or a file: URL). Its options:
@@ -45,12 +53,15 @@ from pathlib import Path
 # The wrapper runs this file with `python3 -I`, which leaves the file's own
 # directory off sys.path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bsp
 import coursier_cache
 import local_repositories
+import lockfile
 import offline_mirror
 import publication
 
-LOCK_FILE = "scala-cli-purifier.lock.json"
+LOCK_FILE = lockfile.LOCK_FILE
+MAVEN_CENTRAL = "https://repo1.maven.org/maven2"
 LOCK_VERSION = 1
 STATE_DIR = ".scala-cli-purifier"
 PLATFORMS = ("JVM", "JS", "Native")
@@ -75,12 +86,22 @@ def isolated_env(work, cache, offline):
     the given coursier cache, the way the Nix build runs scala-cli."""
     home = work / "home"
     home.mkdir(parents=True, exist_ok=True)
+    # The build server binds a Unix domain socket under
+    # $XDG_DATA_HOME/scalacli/bloop/daemon, and Linux limits the path of
+    # such a socket to 107 bytes, so the data directory has a short name.
+    data = work / "d"
+    socket = data / "scalacli/bloop/daemon/socket"
+    if len(os.fsencode(socket)) > 107:
+        raise PurifierError(
+            f"the build server's socket would be {socket}, which is longer than a Unix domain socket"
+            " path may be; set TMPDIR to a shorter directory"
+        )
     e = {k: v for k, v in os.environ.items() if not k.startswith("COURSIER_")}
     e.update(
         HOME=str(home),
         XDG_CACHE_HOME=str(home / ".cache"),
         XDG_CONFIG_HOME=str(home / ".config"),
-        XDG_DATA_HOME=str(home / ".local/share"),
+        XDG_DATA_HOME=str(data),
         XDG_STATE_HOME=str(home / ".local/state"),
         COURSIER_CACHE=str(cache),
         COURSIER_ARCHIVE_CACHE=str(work / "archive-cache"),
@@ -92,6 +113,28 @@ def isolated_env(work, cache, offline):
             if k.lower() in ("http_proxy", "https_proxy", "all_proxy"):
                 del e[k]
     return e
+
+
+def central_mirrors():
+    """The mirrors of Maven Central the lock run downloads through, from
+    SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR, as coursier_cache.canonical
+    takes them."""
+    mirror = os.environ.get("SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR")
+    return {MAVEN_CENTRAL: [mirror.rstrip("/")]} if mirror else {}
+
+
+def configure_mirrors(environment, mirrors):
+    """Makes coursier download each repository of `mirrors` from its first
+    mirror, through a mirror.properties file in the config directory of the
+    lock run's isolated home."""
+    if not mirrors:
+        return
+    lines = []
+    for n, (base, alternates) in enumerate(mirrors.items()):
+        lines += [f"mirror{n}.from={base}", f"mirror{n}.to={alternates[0]}"]
+    config = Path(environment["XDG_CONFIG_HOME"], "coursier")
+    config.mkdir(parents=True, exist_ok=True)
+    (config / "mirror.properties").write_text("\n".join(lines) + "\n")
 
 
 def java_properties(work, mirror_options=None, user_home=None):
@@ -119,14 +162,14 @@ def home_override():
     return local_repositories.user_home() if os.environ.get("SCALA_CLI_PURIFIER_USER_HOME") else None
 
 
-def start_mirror(cache, state, urls, java_home):
-    """Starts the offline mirror (offline_mirror.py) on `cache`, with
-    certificates for the hosts of `urls`, and returns its Java options and
-    its server."""
+def start_mirror(cache, state, aliases, java_home):
+    """Starts the offline mirror (offline_mirror.py) on `cache`, serving the
+    URLs of `aliases` from their cache paths, with certificates for their
+    hosts, and returns its Java options and its server."""
     keytool = Path(java_home, "bin", "keytool")
     if not keytool.is_file():
         raise PurifierError(f"{java_home} has no bin/keytool, which the offline mirror needs")
-    return offline_mirror.start(cache, state, offline_mirror.hosts_of(urls), str(keytool))
+    return offline_mirror.start(cache, state, offline_mirror.hosts_of(aliases), str(keytool), aliases=aliases)
 
 
 def common_options(java_home, platform, offline):
@@ -174,6 +217,35 @@ def scala_cli_commands(
         repo = work / "publication"
         commands.append([scala_cli, *props, "publish", *common, "--publish-repository", repo.as_uri(), *arguments])
     return commands
+
+
+def editor_session(root, work, java_home, arguments, platform, environment, mirror_options=None, user_home=None, extra=()):
+    """What an editor asks scala-cli's build server on opening the project
+    (bsp.editor_session): online in the lock run, so the lockfile holds the
+    sources jars and the rest an editor needs, and offline in its check.
+    Returns None when the compile succeeds and every dependency source is a
+    file, and what went wrong otherwise."""
+    argv = [
+        env("SCALA_CLI_PURIFIER_SCALA_CLI"),
+        *java_properties(work, mirror_options, user_home),
+        "bsp",
+        *common_options(java_home, platform, offline=mirror_options is not None),
+        "--workspace",
+        str(work / "bsp-workspace"),
+        *extra,
+        *arguments,
+    ]
+    messages = []
+    try:
+        result = bsp.editor_session(argv, root, root.as_uri(), env=environment, log=messages.append)
+    except bsp.BspError as e:
+        return "\n".join([*messages, f"the editor session failed: {e}"])
+    missing = [p for p in result["dependencySources"] if not Path(p).is_file()]
+    if result["compileStatus"] != 1:
+        return "\n".join([*messages, "the editor session could not compile the project"])
+    if missing:
+        return "the build server names dependency sources that are missing:\n" + "\n".join(missing)
+    return None
 
 
 def run_all(commands, cwd, environment, quiet):
@@ -288,27 +360,38 @@ def stage_local_repositories(locals_, sources, home, other_root):
     return extra
 
 
-def check_offline(root, java_home, arguments, platform, test, publish, source_cache, paths, work, locals_, sources):
-    """Build offline from `paths` of `source_cache` and the recorded files of
-    the local repositories alone, in a fresh home. Returns None on success
-    and the build's output on failure."""
+def check_offline(
+    root, java_home, arguments, platform, test, publish, ide, source_cache, mirrors, paths, work, locals_, sources
+):
+    """Build offline from `paths` of `source_cache`, each at its canonical
+    cache path, and the recorded files of the local repositories alone, in
+    a fresh home, as the Nix build does. Returns None on success and the
+    build's output on failure."""
     cache = work / "cache"
+    aliases = {}
     for rel in paths:
-        target = cache / rel
+        path, url, alternates = coursier_cache.canonical(rel, mirrors)
+        for alias in [coursier_cache.url_of(rel), url, *alternates]:
+            aliases[alias] = path
+        target = cache / path
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source_cache / rel, target)
     user_home = work / "user-home"
     user_home.mkdir(parents=True, exist_ok=True)
     extra = stage_local_repositories(locals_, sources, user_home, work / "local-repositories")
-    urls = [coursier_cache.url_of(p) for p in paths]
     unlocked = []
-    mirror_options, server = start_mirror(cache, work / "mirror", urls, java_home)
+    mirror_options, server = start_mirror(cache, work / "mirror", aliases, java_home)
     offline_mirror.Handler.log = staticmethod(lambda message: unlocked.append(message))
     try:
         commands = scala_cli_commands(
             work, java_home, arguments, platform, test, publish, mirror_options, user_home, extra
         )
-        output = run_all(commands, root, isolated_env(work, cache, offline=True), quiet=True)
+        environment = isolated_env(work, cache, offline=True)
+        output = run_all(commands, root, environment, quiet=True)
+        if output is None and ide:
+            output = editor_session(
+                root, work, java_home, arguments, platform, environment, mirror_options, user_home, extra
+            )
     finally:
         server.shutdown()
     if output is not None and unlocked:
@@ -335,12 +418,14 @@ def published_files(repository):
 
 
 def parse_lock_args(args):
-    options = {"test": False, "publish": False, "name": None}
+    options = {"test": False, "publish": False, "ide": True, "name": None}
     arguments = []
     it = iter(args)
     for arg in it:
         if arg in ("--test", "--publish"):
             options[arg[2:]] = True
+        elif arg == "--no-ide":
+            options["ide"] = False
         elif arg == "--name":
             options["name"] = next(it, None)
             if not options["name"]:
@@ -353,8 +438,9 @@ def parse_lock_args(args):
 
 
 def lock(args):
+    lockfile_path, args = take_lockfile(args)
     options, arguments = parse_lock_args(args)
-    test, publish = options["test"], options["publish"]
+    test, publish, ide = options["test"], options["publish"], options["ide"]
     root = Path.cwd()
     name = options["name"] or root.name
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9+._-]*", name):
@@ -367,12 +453,20 @@ def lock(args):
         cache = run_dir / "cache"
         cache.mkdir(parents=True)
         environment = isolated_env(run_dir, cache, offline=False)
+        mirrors = central_mirrors()
+        configure_mirrors(environment, mirrors)
         user_home = home_override()
         platform, resolvers = detect_platform(root, run_dir, java_home, arguments, environment, user_home)
         print(f"scala-cli-purifier: building for {platform} with an empty coursier cache", file=sys.stderr)
         commands = scala_cli_commands(run_dir, java_home, arguments, platform, test, publish, user_home=user_home)
         if run_all(commands, root, environment, quiet=False) is not None:
             raise PurifierError("the lock run failed; see scala-cli's output above")
+        if ide:
+            print("scala-cli-purifier: opening the project as an editor does", file=sys.stderr)
+            failure = editor_session(root, run_dir, java_home, arguments, platform, environment, user_home=user_home)
+            if failure is not None:
+                sys.stderr.write(failure + "\n")
+                raise PurifierError("the editor session of the lock run failed; `lock --no-ide` locks without it")
 
         # Coursier reads local repositories in place; the files the class
         # path reaches into are recorded with their hashes.
@@ -387,7 +481,7 @@ def lock(args):
         fetched = [p for p in files if not coursier_cache.is_version_listing(p)]
         listings = [p for p in files if coursier_cache.is_version_listing(p)]
         print("scala-cli-purifier: checking the build offline from the recorded files", file=sys.stderr)
-        check = (root, java_home, arguments, platform, test, publish, cache)
+        check = (root, java_home, arguments, platform, test, publish, ide, cache, mirrors)
         output = check_offline(*check, fetched, tmp / "check", locals_, sources)
         inlined = []
         if output is not None and listings:
@@ -400,7 +494,7 @@ def lock(args):
             inlined = listings
             print(
                 "scala-cli-purifier: the offline build needs version listings; the lockfile holds them inline:\n"
-                + "".join(f"    {coursier_cache.url_of(p)}\n" for p in listings),
+                + "".join(f"    {coursier_cache.canonical(p, mirrors)[1]}\n" for p in listings),
                 file=sys.stderr,
             )
         if output is not None:
@@ -409,105 +503,229 @@ def lock(args):
                 "the project does not build offline from the files the lock run downloaded"
                 " and the files it read from local repositories"
             )
-        artifacts = coursier_cache.entries(cache, fetched) + coursier_cache.inline_entries(cache, inlined)
+        artifacts = coursier_cache.entries(cache, fetched, mirrors) + coursier_cache.inline_entries(
+            cache, inlined, mirrors
+        )
         artifacts.sort(key=lambda e: e["path"])
         published = published_files(run_dir / "publication") if publish else []
 
-    lockfile = {
+    data = {
         "version": LOCK_VERSION,
         "scalaCliVersion": env("SCALA_CLI_PURIFIER_SCALA_CLI_VERSION"),
         "javaVersion": java_version(java_home),
         "name": name,
         "platform": platform,
         "arguments": arguments,
+        "directivesHash": lockfile.directives_hash(root, arguments),
         "test": test,
         "publish": publish,
+        "ide": ide,
         "publication": published,
         "localRepositories": locals_,
         "artifacts": artifacts,
     }
-    (root / LOCK_FILE).write_text(json.dumps(lockfile, indent=2) + "\n")
-    print(f"scala-cli-purifier: wrote {LOCK_FILE} ({len(artifacts)} files)", file=sys.stderr)
+    data["checksum"] = lockfile.checksum(data)
+    lockfile_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    print(f"scala-cli-purifier: wrote {lockfile_path} ({len(artifacts)} files)", file=sys.stderr)
 
 
-# --- exec -----------------------------------------------------------------
+# --- reading a lockfile ---------------------------------------------------
 
 
-def read_lock(root):
-    lockfile_path = root / LOCK_FILE
+def read_lock(root, lockfile_path):
+    """The lockfile at `lockfile_path`, after checking that it is intact,
+    that this version reads it, and that the directives of the project at
+    `root` still match it."""
     if not lockfile_path.is_file():
-        raise PurifierError(f"no {LOCK_FILE} here; run `scala-cli-purifier lock` first")
-    locked = json.loads(lockfile_path.read_text())
+        raise PurifierError(f"no {lockfile_path.name} at {lockfile_path.parent}; run `scala-cli-purifier lock` first")
+    locked = lockfile.read(lockfile_path)
+    lockfile.check_directives(root, locked, lockfile_path.name)
     if locked.get("version") != LOCK_VERSION:
-        raise PurifierError(f"{LOCK_FILE} has lock format {locked.get('version')}; this version reads {LOCK_VERSION}. Re-lock.")
+        raise PurifierError(
+            f"{lockfile_path} has lock format {locked.get('version')}; this version reads {LOCK_VERSION}."
+            " Run `scala-cli-purifier lock` to write it again"
+        )
     version = env("SCALA_CLI_PURIFIER_SCALA_CLI_VERSION")
     if locked.get("scalaCliVersion") != version:
         raise PurifierError(
-            f"{LOCK_FILE} was made with scala-cli {locked.get('scalaCliVersion')}, and this is {version}. Re-lock."
+            f"{lockfile_path} was made with scala-cli {locked.get('scalaCliVersion')}, and this is {version}."
+            " Run `scala-cli-purifier lock` to lock with this one"
         )
-    return lockfile_path, locked
+    return locked
 
 
-def realize(root, lockfile_path):
-    """The coursier cache of the lock: every locked file in the store, with
-    one GC root on the manifest that names them all, and a writable tree of
-    links into the store, since coursier writes lock and marker files next
-    to what it reads."""
-    lib = env("SCALA_CLI_PURIFIER_LIB")
-    state = root / STATE_DIR
+def take_lockfile(args):
+    """The lockfile a command reads or writes, as a path, and the other
+    arguments: the --lockfile option, else SCALA_CLI_PURIFIER_LOCKFILE, else
+    the lockfile in the current directory."""
+    rest = []
+    path = os.environ.get("SCALA_CLI_PURIFIER_LOCKFILE") or None
+    it = iter(args)
+    for arg in it:
+        if arg == "--lockfile":
+            path = next(it, None)
+            if not path:
+                raise PurifierError("--lockfile needs a path")
+        elif arg.startswith("--lockfile="):
+            path = arg.split("=", 1)[1]
+        else:
+            rest.append(arg)
+    return (Path(path).resolve() if path else Path.cwd() / LOCK_FILE), rest
+
+
+# --- prefetch -------------------------------------------------------------
+
+
+def prefetch(args):
+    """Realizes every file of the lockfile in the Nix store, with a GC root
+    beside the lockfile, so the scala-cli wrapper and the editor work with the
+    network cut off: the build's downloads, the test dependencies and what
+    an editor asks for."""
+    lockfile_path, rest = take_lockfile(args)
+    if rest:
+        raise PurifierError(f"prefetch takes no arguments besides --lockfile: {rest}")
+    root = Path.cwd()
+    locked = read_lock(root, lockfile_path)
+    state = lockfile_path.parent / STATE_DIR
     state.mkdir(exist_ok=True)
-    expr = ["--arg", "lockFile", str(lockfile_path), f"{lib}/realize.nix"]
-    subprocess.run(["nix-build", "--no-out-link", "-A", "fetches", *expr], check=True, stdout=subprocess.DEVNULL)
-    manifest = subprocess.run(
-        # Read-write mode, so the evaluation writes the builtins.toFile
-        # manifest and inline entries to the store.
-        ["nix-instantiate", "--eval", "--read-write-mode", "--raw", "-A", "manifest", *expr],
-        check=True,
-        stdout=subprocess.PIPE,
-        text=True,
-    ).stdout.strip()
     subprocess.run(
-        ["nix-store", "--realise", manifest, "--add-root", str(state / "manifest"), "--indirect"],
+        [
+            "nix-build",
+            f"{env('SCALA_CLI_PURIFIER_LIB')}/prefetch.nix",
+            "--arg",
+            "nixpkgs",
+            env("SCALA_CLI_PURIFIER_NIXPKGS"),
+            "--arg",
+            "purifierSource",
+            env("SCALA_CLI_PURIFIER_PURIFIER"),
+            "--arg",
+            "lockFile",
+            str(lockfile_path),
+            "--out-link",
+            str(state / "downloads"),
+        ],
         check=True,
         stdout=subprocess.DEVNULL,
     )
+    (state / "prefetched").write_text(locked["checksum"] + "\n")
+    print(
+        f"scala-cli-purifier: prefetched {len(locked['artifacts'])} files into {state / 'downloads'};"
+        " scala-cli works offline in this project",
+        file=sys.stderr,
+    )
+
+
+# --- the scala-cli wrapper ------------------------------------------------
+
+# The scala-cli commands that resolve or build, which the wrapper runs with
+# the options of the lock run. Other commands, such as `version` or
+# `config`, run with the locked cache and nothing else.
+BUILD_COMMANDS = {
+    "compile",
+    "run",
+    "test",
+    "package",
+    "repl",
+    "console",
+    "doc",
+    "setup-ide",
+    "bsp",
+    "export",
+    "fix",
+    "fmt",
+    "publish",
+}
+
+
+def find_lockfile():
+    """The lockfile the wrapper reads: SCALA_CLI_PURIFIER_LOCKFILE, or the
+    nearest scala-cli-purifier.lock.json in the current directory or above,
+    or None."""
+    named = os.environ.get("SCALA_CLI_PURIFIER_LOCKFILE")
+    if named:
+        return Path(named).resolve(), Path.cwd()
+    for directory in [Path.cwd(), *Path.cwd().parents]:
+        if (directory / LOCK_FILE).is_file():
+            return directory / LOCK_FILE, directory
+    return None, None
+
+
+def prefetched_cache(lockfile_path, locked):
+    """The writable coursier cache of a prefetched lockfile: a tree of links
+    into the prefetched downloads, since coursier writes lock and marker
+    files next to what it reads."""
+    state = lockfile_path.parent / STATE_DIR
+    stamp = state / "prefetched"
+    downloads = state / "downloads"
+    if not (downloads.exists() and stamp.is_file() and stamp.read_text().strip() == locked["checksum"]):
+        raise PurifierError(
+            "the locked downloads of this project are not prefetched for its lockfile."
+            " Run `scala-cli-purifier prefetch`"
+        )
     cache = state / "coursier-cache"
-    stamp = state / "coursier-cache.manifest"
-    if not (cache.is_dir() and stamp.is_file() and stamp.read_text() == manifest):
+    cache_stamp = state / "coursier-cache.prefetched"
+    if not (cache.is_dir() and cache_stamp.is_file() and cache_stamp.read_text() == stamp.read_text()):
         shutil.rmtree(cache, ignore_errors=True)
-        for rel, target in json.loads(Path(manifest).read_text()).items():
-            link = cache / rel
-            link.parent.mkdir(parents=True, exist_ok=True)
-            link.symlink_to(target)
-        stamp.write_text(manifest)
+        target = downloads.resolve()
+        for link in target.rglob("*"):
+            if link.is_symlink() or link.is_file():
+                destination = cache / link.relative_to(target)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.symlink_to(link.resolve())
+        cache_stamp.write_text(stamp.read_text())
     return cache
 
 
-def exec_(args):
-    if args and args[0] == "--":
-        args = args[1:]
-    if not args or args[0].startswith("-"):
-        raise PurifierError("exec needs a scala-cli command, such as `scala-cli-purifier exec run .`")
-    root = Path.cwd()
-    lockfile_path, locked = read_lock(root)
-    cache = realize(root, lockfile_path)
-    environment = dict(os.environ, COURSIER_CACHE=str(cache), COURSIER_MODE="offline")
-    command, rest = args[0], args[1:]
-    java_home = default_java_home()
-    work = root / STATE_DIR
-    urls = [a["url"] for a in locked["artifacts"] if "url" in a]
-    mirror_options, server = start_mirror(cache, work / "mirror", urls, java_home)
+def point_bsp_at_wrapper(root):
+    """Makes .bsp/scala-cli.json, which `scala-cli setup-ide` wrote, start
+    the build server through this wrapper, which runs it offline on the
+    prefetched downloads and the offline mirror."""
+    config_path = root / ".bsp" / "scala-cli.json"
     try:
-        # exec reads local repositories in place, from the home scala-cli
-        # reads them from.
-        argv = [
-            env("SCALA_CLI_PURIFIER_SCALA_CLI"),
-            *java_properties(work, mirror_options, home_override()),
-            command,
-            *common_options(java_home, locked.get("platform", "JVM"), offline=True),
-            *rest,
-        ]
-        return subprocess.run(argv, env=environment, check=False).returncode
+        config = json.loads(config_path.read_text())
+        argv = config["argv"]
+    except (OSError, ValueError, KeyError) as e:
+        raise PurifierError(f"scala-cli setup-ide wrote no usable {config_path} ({e})") from None
+    # The launcher and its Java options come before `bsp`: the native
+    # scala-cli, or a JVM and the scala-cli jar. The wrapper starts its own
+    # scala-cli with its own options.
+    if "bsp" not in argv:
+        raise PurifierError(f"{config_path} does not start `scala-cli bsp`: {argv}")
+    config["argv"] = [env("SCALA_CLI_PURIFIER_WRAPPER"), *argv[argv.index("bsp") :]]
+    config_path.write_text(json.dumps(config, indent=2) + "\n")
+
+
+def scala_cli_wrapper(args):
+    """scala-cli, on the locked downloads in a project with a lockfile:
+    offline, through the offline mirror, with the options of the lock run.
+    Outside such a project it is scala-cli itself."""
+    scala_cli = env("SCALA_CLI_PURIFIER_SCALA_CLI")
+    lockfile_path, root = find_lockfile()
+    if lockfile_path is None:
+        os.execv(scala_cli, [scala_cli, *args])
+    locked = read_lock(root, lockfile_path)
+    cache = prefetched_cache(lockfile_path, locked)
+    environment = dict(os.environ, COURSIER_CACHE=str(cache), COURSIER_MODE="offline")
+    command = args[0] if args and not args[0].startswith("-") else None
+    java_home = default_java_home()
+    work = lockfile_path.parent / STATE_DIR
+    aliases = offline_mirror.lock_aliases(locked["artifacts"])
+    mirror_options, server = start_mirror(cache, work / "mirror", aliases, java_home)
+    try:
+        if command in BUILD_COMMANDS:
+            argv = [
+                scala_cli,
+                *java_properties(work, mirror_options, home_override()),
+                command,
+                *common_options(java_home, locked.get("platform", "JVM"), offline=True),
+                *args[1:],
+            ]
+        else:
+            argv = [scala_cli, *args]
+        status = subprocess.run(argv, env=environment, check=False).returncode
+        if status == 0 and command == "setup-ide":
+            point_bsp_at_wrapper(Path.cwd())
+        return status
     finally:
         server.shutdown()
 
@@ -515,21 +733,27 @@ def exec_(args):
 # --- publish --------------------------------------------------------------
 
 
-def build_publication(root):
-    """The publication of the project, built by Nix: a Maven repository
+def build_release(root, lockfile_path):
+    """The release of the project, built by Nix: a Maven repository
     directory of what `scala-cli publish` wrote in the sandbox."""
     lib = env("SCALA_CLI_PURIFIER_LIB")
     out = subprocess.run(
         [
             "nix-build",
             "--no-out-link",
-            f"{lib}/publication.nix",
+            f"{lib}/release.nix",
             "--argstr",
             "nixpkgs",
             env("SCALA_CLI_PURIFIER_NIXPKGS"),
             "--argstr",
+            "purifierSource",
+            env("SCALA_CLI_PURIFIER_PURIFIER"),
+            "--argstr",
             "src",
             str(root),
+            "--argstr",
+            "lockFile",
+            str(lockfile_path),
         ],
         check=True,
         stdout=subprocess.PIPE,
@@ -539,6 +763,7 @@ def build_publication(root):
 
 
 def publish(args):
+    lockfile_path, args = take_lockfile(args)
     repository = None
     user_env = "SCALA_CLI_PURIFIER_PUBLISH_USER"
     password_env = "SCALA_CLI_PURIFIER_PUBLISH_PASSWORD"
@@ -568,12 +793,12 @@ def publish(args):
         raise PurifierError("publish needs a repository, or --bundle FILE instead of one")
 
     root = Path.cwd()
-    _, locked = read_lock(root)
+    locked = read_lock(root, lockfile_path)
     if not locked.get("publish"):
-        raise PurifierError(f"{LOCK_FILE} was not made with --publish; run `scala-cli-purifier lock --publish`")
-    built = build_publication(root)
+        raise PurifierError(f"{lockfile_path} was not made with --publish; run `scala-cli-purifier lock --publish`")
+    built = build_release(root, lockfile_path)
     with tempfile.TemporaryDirectory(prefix="scala-cli-purifier-publish-") as tmp:
-        staged = Path(tmp) / "publication"
+        staged = Path(tmp) / "release"
         shutil.copytree(built, staged)
         for f in staged.rglob("*"):
             f.chmod(0o755 if f.is_dir() else 0o644)
@@ -590,6 +815,19 @@ def publish(args):
 
 
 def main(argv):
+    errors = (
+        PurifierError,
+        publication.PublishError,
+        lockfile.LockfileError,
+        local_repositories.LocalRepositoryError,
+    )
+    if os.environ.get("SCALA_CLI_PURIFIER_AS_SCALA_CLI"):
+        # The package installs this program as `scala-cli` too.
+        try:
+            return scala_cli_wrapper(argv[1:])
+        except errors as e:
+            print(f"scala-cli-purifier: {e}", file=sys.stderr)
+            return 1
     if len(argv) < 2 or argv[1] in ("-h", "--help", "help"):
         print(__doc__.strip())
         return 0 if len(argv) >= 2 else 2
@@ -597,13 +835,18 @@ def main(argv):
     try:
         if verb == "lock":
             lock(args)
-        elif verb == "exec":
-            return exec_(args)
+        elif verb == "prefetch":
+            prefetch(args)
         elif verb == "publish":
             publish(args)
         else:
-            raise PurifierError(f"unknown command '{verb}'; the commands are lock, exec and publish")
-    except (PurifierError, publication.PublishError) as e:
+            raise PurifierError(f"unknown command '{verb}'; the commands are lock, prefetch and publish")
+    except (
+        PurifierError,
+        publication.PublishError,
+        lockfile.LockfileError,
+        local_repositories.LocalRepositoryError,
+    ) as e:
         print(f"scala-cli-purifier: {e}", file=sys.stderr)
         return 1
     except subprocess.CalledProcessError as e:

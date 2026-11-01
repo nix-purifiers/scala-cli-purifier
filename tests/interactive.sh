@@ -2,12 +2,16 @@
 # SPDX-License-Identifier: MIT
 #
 # Tests the commands that need the Nix daemon, so they are not flake
-# checks: `exec` on the hello fixture, which realizes its lockfile through
-# Nix and runs scala-cli offline, and `publish` of the library fixture,
-# which builds its publication with Nix and copies it to a repository
-# directory or writes a Maven Central bundle. Run from the repository root.
+# checks: `prefetch` of the hello and url fixtures and the everyday loop on
+# the scala-cli wrapper, an external lockfile, a `file:` repository, and
+# `publish` of the library fixture, which builds its release with Nix and
+# copies it to a repository directory or writes a Maven Central bundle.
+# Run from the repository root; the lock of the scratch project needs the
+# network.
 set -euo pipefail
-cli=$(nix build --no-link --print-out-paths '.#cli')/bin/scala-cli-purifier
+bin=$(nix build --no-link --print-out-paths '.#cli')/bin
+cli=$bin/scala-cli-purifier
+scala_cli=$bin/scala-cli
 root=$PWD
 
 # scala-cli keeps caches of its own in the home directory; a temporary home
@@ -16,28 +20,61 @@ home=$(mktemp -d)
 trap 'rm -rf "$home"' EXIT
 export HOME="$home" XDG_CACHE_HOME="$home/.cache" XDG_CONFIG_HOME="$home/.config" XDG_DATA_HOME="$home/.local/share"
 
-cd "$root/tests/fixtures/hello"
-rm -rf .scala-cli-purifier .scala-build
-output=$("$cli" exec run .)
-echo "$output"
-if [ "$output" != '{"hello":"Nix World"}' ]; then
-  echo "unexpected output from exec run" >&2
-  exit 1
-fi
-"$cli" exec test .
-echo "exec realized $(find .scala-cli-purifier/coursier-cache -type l | wc -l) locked files"
-rm -rf .scala-cli-purifier .scala-build
+# Runs the program of the project in the current directory through the
+# wrapper and requires the output $1.
+expect_run() {
+  local output
+  output=$("$scala_cli" run .)
+  echo "$output"
+  if [ "$output" != "$1" ]; then
+    echo "unexpected output from scala-cli run in $PWD" >&2
+    exit 1
+  fi
+}
 
-# A url= dependency resolves offline through the offline mirror.
-cd "$root/tests/fixtures/url"
-rm -rf .scala-cli-purifier .scala-build
-output=$("$cli" exec run .)
-echo "$output"
-if [ "$output" != 'geny from a URL: 2,4,6' ]; then
-  echo "unexpected output from exec run of the url fixture" >&2
+# Before the prefetch, the wrapper says what to run.
+cd "$root/tests/fixtures/hello"
+rm -rf .scala-cli-purifier .scala-build .bsp
+if "$scala_cli" compile . 2> "$home/unprefetched.log"; then
+  echo "the wrapper ran without a prefetch" >&2
   exit 1
 fi
-rm -rf .scala-cli-purifier .scala-build
+grep -q 'scala-cli-purifier prefetch' "$home/unprefetched.log"
+
+# The everyday loop and the editor on the prefetched downloads.
+"$cli" prefetch
+test -L .scala-cli-purifier/downloads
+expect_run '{"hello":"Nix World"}'
+"$scala_cli" test .
+"$scala_cli" setup-ide .
+python3 -I "$root/pkgs/cli/bsp.py" .
+rm -rf .scala-cli-purifier .scala-build .bsp
+
+# A url= dependency resolves offline through the offline mirror, in the
+# loop and in the build server.
+cd "$root/tests/fixtures/url"
+rm -rf .scala-cli-purifier .scala-build .bsp
+"$cli" prefetch
+expect_run 'hiccup from a URL: true'
+"$scala_cli" setup-ide .
+python3 -I "$root/pkgs/cli/bsp.py" .
+rm -rf .scala-cli-purifier .scala-build .bsp
+
+# An external lockfile: the project holds only its sources, and the
+# lockfile lies in a packaging directory that SCALA_CLI_PURIFIER_LOCKFILE
+# names.
+packaging="$home/packaging"
+external="$home/external-project"
+mkdir -p "$packaging" "$external"
+cp "$root"/tests/fixtures/hello/*.scala "$external"
+cp "$root/tests/fixtures/hello/scala-cli-purifier.lock.json" "$packaging"
+(
+  cd "$external"
+  export SCALA_CLI_PURIFIER_LOCKFILE="$packaging/scala-cli-purifier.lock.json"
+  "$cli" prefetch
+  test -L "$packaging/.scala-cli-purifier/downloads"
+  expect_run '{"hello":"Nix World"}'
+)
 
 # A `file:` repository outside the project: lock a scratch project that
 # names one by its absolute path, then build it in the sandbox with the
@@ -58,12 +95,12 @@ echo "the lock names the file: repository $name"
 built=$(nix build --no-link --print-out-paths --impure --expr "
   let
     flake = builtins.getFlake \"git+file://$root\";
-    pkgs = flake.inputs.nixpkgs.legacyPackages.\${builtins.currentSystem}.extend flake.overlays.default;
   in
-  (pkgs.buildScalaCliProject {
+  (flake.lib.scala-cli-purifier.buildScalaCliProject {
+    pkgs = flake.inputs.nixpkgs.legacyPackages.\${builtins.currentSystem};
     src = $project;
     localRepositories.\"$name\" = $repository;
-  }).package")
+  }).packages.file-repository-project")
 output=$("$built/bin/file-repository-project")
 echo "$output"
 if [ "$output" != 'from a file repository...' ]; then

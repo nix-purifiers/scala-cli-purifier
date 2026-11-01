@@ -1,0 +1,130 @@
+# SPDX-License-Identifier: MIT
+"""The integrity and freshness of a scala-cli-purifier lockfile.
+
+A lockfile carries two hashes besides its entries:
+
+  checksum         the sha256 (hex) of the lockfile's content without the
+                   checksum, as compact JSON with sorted keys, which is
+                   what Nix's builtins.toJSON writes; a lockfile edited by
+                   hand no longer matches it.
+  directivesHash   the sha256 (hex) of the project's `//> using` directives,
+                   file by file; a project whose directives changed since
+                   the lock, such as one with a dependency added, no longer
+                   matches it.
+
+  python3 lockfile.py check-directives ROOT LOCKFILE
+
+exits non-zero, saying what to run, when the project at ROOT no longer has
+the directives LOCKFILE was made from. The Nix build runs it.
+"""
+
+import hashlib
+import json
+import re
+import sys
+from pathlib import Path
+
+LOCK_FILE = "scala-cli-purifier.lock.json"
+
+# The files scala-cli reads `//> using` directives from.
+SOURCE_SUFFIXES = (".scala", ".sc", ".java", ".md")
+# Directories that are build output or editor state, never sources; the Nix
+# build leaves them out of its copy of the project too.
+SKIPPED_DIRECTORIES = {".scala-build", ".scala-cli-purifier", ".bsp", ".metals", ".bloop", ".git", ".idea"}
+DIRECTIVE = re.compile(r"^\s*//>")
+
+
+class LockfileError(Exception):
+    pass
+
+
+def canonical(data):
+    """Compact JSON with sorted keys, as Nix's builtins.toJSON writes it."""
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def checksum(data):
+    """The checksum of a lockfile's content, without its checksum field."""
+    rest = {k: v for k, v in data.items() if k != "checksum"}
+    return hashlib.sha256(canonical(rest).encode("utf-8")).hexdigest()
+
+
+def source_files(root, arguments):
+    """The source files of the inputs among `arguments`, relative to
+    `root`, sorted: the directories and files they name, and every source
+    file below a directory. Options and inputs that are no paths are
+    skipped."""
+    found = set()
+    for argument in arguments:
+        if argument.startswith("-"):
+            continue
+        path = (root / argument).resolve()
+        if path.is_file() and path.suffix in SOURCE_SUFFIXES:
+            found.add(path)
+        elif path.is_dir():
+            for file in path.rglob("*"):
+                parts = set(file.relative_to(path).parts)
+                if file.is_file() and file.suffix in SOURCE_SUFFIXES and not parts & SKIPPED_DIRECTORIES:
+                    found.add(file)
+    root = root.resolve()
+    return sorted(f.relative_to(root).as_posix() if f.is_relative_to(root) else f.as_posix() for f in found)
+
+
+def directives_hash(root, arguments):
+    """The hash of the `//> using` directives of the project's sources,
+    with the path of each file that has any."""
+    root = Path(root)
+    digest = hashlib.sha256()
+    for rel in source_files(root, arguments):
+        try:
+            lines = (root / rel).read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        directives = [line.strip() for line in lines if DIRECTIVE.match(line)]
+        if directives:
+            digest.update(rel.encode() + b"\0" + "\n".join(directives).encode() + b"\0")
+    return digest.hexdigest()
+
+
+def read(path):
+    """A lockfile's content, after checking that it is JSON and that its
+    checksum matches."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except json.JSONDecodeError as e:
+        raise LockfileError(f"{path} is not valid JSON ({e}); run `scala-cli-purifier lock` to write it again") from None
+    if not isinstance(data, dict) or "artifacts" not in data:
+        raise LockfileError(f"{path} is not a scala-cli-purifier lockfile; run `scala-cli-purifier lock` to write it again")
+    if data.get("checksum") != checksum(data):
+        raise LockfileError(
+            f"{path} was edited after `scala-cli-purifier lock` wrote it: its checksum does not match its content."
+            " Run `scala-cli-purifier lock` to write it again"
+        )
+    return data
+
+
+def check_directives(root, data, path):
+    """Raises when the project at `root` has other `//> using` directives
+    than the ones the lockfile was made from."""
+    if directives_hash(root, data.get("arguments", ["."])) != data.get("directivesHash"):
+        raise LockfileError(
+            f"the project's `//> using` directives changed since {path} was made, so it may lack what they need."
+            " Run `scala-cli-purifier lock` to lock them"
+        )
+
+
+def main(argv):
+    if len(argv) != 4 or argv[1] != "check-directives":
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    root, path = Path(argv[2]), Path(argv[3])
+    try:
+        check_directives(root, json.loads(path.read_text()), LOCK_FILE)
+    except LockfileError as e:
+        print(f"scala-cli-purifier: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

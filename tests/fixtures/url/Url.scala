@@ -1,7 +1,8 @@
 // A dependency downloaded from a URL rather than resolved from a repository.
 //> using scala 3.3.4
-//> using dep "example:geny-by-url:1.1.1,url=https://repo1.maven.org/maven2/com/lihaoyi/geny_3/1.1.1/geny_3-1.1.1.jar"
+//> using dep "example:hiccup-by-url:1.0.5,url=https://repo.clojars.org/hiccup/hiccup/1.0.5/hiccup-1.0.5.jar"
 package url
 
 @main def main(): Unit =
-  println(geny.Generator(1, 2, 3).map(_ * 2).toSeq.mkString("geny from a URL: ", ",", ""))
+  val found = Option(getClass.getClassLoader.getResource("hiccup/core.clj")).isDefined
+  println(s"hiccup from a URL: $found")
