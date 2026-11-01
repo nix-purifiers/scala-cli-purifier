@@ -848,6 +848,7 @@ def scala_cli_wrapper(args):
     scala_cli = env("SCALA_CLI_PURIFIER_SCALA_CLI")
     lockfile_path, root = find_lockfile()
     if lockfile_path is None:
+        print('scala-cli-purifier: warning: no scala-cli-purifier.lock.json found; running scala-cli impurely. Run `scala-cli-purifier lock` to use Nix-resolved dependencies.', file=sys.stderr)
         os.execv(scala_cli, [scala_cli, *args])
     locked = read_lock(root, lockfile_path)
     cache = prefetched_cache(lockfile_path, locked)

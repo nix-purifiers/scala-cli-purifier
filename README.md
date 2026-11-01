@@ -1,57 +1,89 @@
 # scala-cli-purifier
 
-A command and a Nix builder that build [scala-cli](https://scala-cli.virtuslab.org)
-projects in the Nix sandbox. `scala-cli-purifier lock` records the files
-scala-cli downloads for a project in a lockfile, and
-`buildScalaCliProject` builds the project from that lockfile. The project
-needs no Nix files of its own, and the lockfile is the one generated file
-it commits. scala-cli-purifier is one of the
-[nix-purifiers](https://github.com/nix-purifiers), and it meets their
-common contract.
+scala-cli-purifier keeps Scala CLI's development workflow on locked,
+Nix-resolved dependencies. Use the normal build and test commands in your
+working tree; building the project itself in the Nix sandbox is an
+optional next step.
+
+It follows the [purifier contract](https://github.com/nix-purifiers/purifier/blob/main/CONTRACT.md).
+
+## Installation
+
+Install the integration into your Nix profile once:
+
+```sh
+nix profile install 'github:nix-purifiers/scala-cli-purifier'
+```
+
+This installs the `scala-cli` wrapper. Use it for the locked
+development workflow below. With no purifier lockfile, it warns on standard
+error and runs the ordinary tool with impure resolution.
+
+`nix shell` makes an integration available temporarily instead of installing
+it. Keep using the activation steps below where a project environment or
+prefetched cache is required.
 
 ## Quickstart
 
-Lock the project from its directory, and commit the lockfile:
+Install Nix, then run the following from your existing project's root.
+The setup prepares the locked dependencies and the integration that
+Scala CLI's normal commands use:
 
 ```zsh
-nix run github:nix-purifiers/scala-cli-purifier -- lock --test
+nix shell github:nix-purifiers/scala-cli-purifier
+scala-cli-purifier lock --test
+scala-cli-purifier prefetch
+scala-cli run .
+scala-cli test .
 ```
 
-`lock` writes `scala-cli-purifier.lock.json` at the project root. It lists
-every file scala-cli downloaded by URL and SHA-256, the scala-cli and Java
-versions, the project's platform and scala-cli arguments, and the outputs
-the build produces. With `--test`, the lock run also runs `scala-cli test`,
-so the test dependencies are locked and the Nix build can run the tests.
-With `--publish`, it also runs `scala-cli publish` to a local directory.
-The arguments after the options are scala-cli inputs and options; the
-default is `.`, the project directory.
+Commit the lockfiles that the lock command writes, including the build
+tool's own lockfile when it has one. Keep using the project's usual build,
+test and editor commands with this setup. Nix provides the locked
+dependencies; the development commands above run outside the Nix sandbox.
+No project Nix files are needed for this workflow.
 
-scala-cli keeps no lockfile of its own, so `scala-cli-purifier.lock.json`
-records every download of the project, and it lies at the project root.
-scala-cli has no plugin mechanism, so the command runs scala-cli itself
-with the options of the lock run.
+Sandboxed builds of the whole project are an optional
+[next step](#building-the-project-with-nix).
 
-Then build the project with Nix from the same directory. The project needs
-no Nix file for this:
+## Development loop
 
 ```zsh
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.app'
+scala-cli-purifier prefetch
+scala-cli run .
+scala-cli test .
 ```
 
-This uses the purifier's pinned nixpkgs, matching the lock command above.
-To build with ambient `<nixpkgs>` from your Nix search path instead,
-replace `import purifier.inputs.nixpkgs` with `import <nixpkgs>`.
-Both forms need no Nix files in your project. The build tool and language
-versions must match the lockfile; with ambient nixpkgs, lock with the
-purifier from that package set or pass a compatible toolchain to the builder.
+The package installs a `scala-cli` beside `scala-cli-purifier`. In a
+project with a lockfile, it runs the real scala-cli offline on the locked
+downloads, with the options the lock run used. Outside such a project, it
+is scala-cli itself.
+
+After adding or upgrading a dependency, run `lock` again. Until then the
+wrapper, the commands and Nix evaluation refuse the lockfile, because the
+project's `//> using` directives no longer match the ones it was made from.
+A relock keeps the version listings the lockfile holds, so a version range
+resolves as it did. scala-cli has no command that updates a resolution, so
+`update` downloads the version listings again and relocks: it moves
+version ranges and `latest` selectors to what is published now, for every
+module or for the named ones:
+
+```zsh
+scala-cli-purifier update com.lihaoyi::sourcecode
+```
+
+The commands run scala-cli on the JDK 21 of the package, which
+`SCALA_CLI_PURIFIER_JAVA_HOME` can replace; `JAVA_HOME` does not choose it,
+so a relock records the same Java version on every machine. The Nix build
+uses the headless JDK of that major version from the package set.
+
+## Building the project with Nix
+
+Once the native development workflow is working, you can also build and
+test the whole project in the Nix sandbox. For this step, keep a flake or
+another Nix build definition in the project's repository, or maintain an
+external packaging repository that points at its sources and lockfiles.
+The builder consumes the same lockfiles as the development workflow.
 
 Here `app` is the name of the program, which is the name of the project
 directory unless `lock --name` gave another. `result/bin/app` runs the
@@ -137,36 +169,29 @@ name other variables). A path or a `file:` URL takes a copy. `--gpg-key`
 signs every file, and `--bundle` writes a zip with SHA-256 and SHA-512
 checksums too, which is the bundle the Maven Central Portal takes.
 
-## Development loop
+### One-off builds without a project Nix file
+
+For an ad hoc build, the builder can also be evaluated directly from the
+project root. Replace the example package name with one from your project:
 
 ```zsh
-scala-cli-purifier prefetch
-scala-cli run .
-scala-cli test .
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
+    };
+  in
+  (pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.app'
 ```
 
-The package installs a `scala-cli` beside `scala-cli-purifier`. In a
-project with a lockfile, it runs the real scala-cli offline on the locked
-downloads, with the options the lock run used. Outside such a project, it
-is scala-cli itself.
-
-After adding or upgrading a dependency, run `lock` again. Until then the
-wrapper, the commands and Nix evaluation refuse the lockfile, because the
-project's `//> using` directives no longer match the ones it was made from.
-A relock keeps the version listings the lockfile holds, so a version range
-resolves as it did. scala-cli has no command that updates a resolution, so
-`update` downloads the version listings again and relocks: it moves
-version ranges and `latest` selectors to what is published now, for every
-module or for the named ones:
-
-```zsh
-scala-cli-purifier update com.lihaoyi::sourcecode
-```
-
-The commands run scala-cli on the JDK 21 of the package, which
-`SCALA_CLI_PURIFIER_JAVA_HOME` can replace; `JAVA_HOME` does not choose it,
-so a relock records the same Java version on every machine. The Nix build
-uses the headless JDK of that major version from the package set.
+This uses the purifier's pinned nixpkgs, matching the lock command above.
+To build with ambient `<nixpkgs>` from your Nix search path instead,
+replace `import purifier.inputs.nixpkgs` with `import <nixpkgs>`.
+Both forms need no Nix files in your project. The build tool and language
+versions must match the lockfile; with ambient nixpkgs, lock with the
+purifier from that package set or pass a compatible toolchain to the builder.
 
 ## Working offline
 
@@ -274,6 +299,11 @@ lockfile records each file under its Maven Central URL, and the Nix build
 falls back to Google's mirror when Maven Central fails.
 
 ## Examples
+
+For day-to-day work on these projects, use the native-tool setup and
+commands in [Quickstart](#quickstart) and [Development loop](#development-loop).
+The Nix expressions below show optional sandboxed packaging of those
+projects.
 
 ### Packaging besom core
 
