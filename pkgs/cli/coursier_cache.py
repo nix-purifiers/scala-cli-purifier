@@ -100,13 +100,13 @@ def is_bookkeeping(name):
 
 
 def is_version_listing(path):
-    """Whether a cache path is a maven-metadata.xml version listing.
+    """Whether a cache path is mutable metadata or a directory listing.
 
     A listing's content changes upstream whenever a version is published,
     so a hash pinned in a lockfile stops matching what the URL serves. A
     lock run leaves listings out unless the offline build needs them.
     """
-    return Path(path).name.startswith("maven-metadata")
+    return Path(path).name == ".directory" or Path(path).name.startswith("maven-metadata")
 
 
 CHECKSUM_SUFFIXES = (".sha1", ".md5", ".sha256", ".sha512")

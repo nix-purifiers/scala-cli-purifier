@@ -45,6 +45,16 @@
       "hash": "sha256-cLNjbeod29EFQdh59kCqgKFTstL0ZhJz8yQb41qKKsU="
     },
     {
+      "path": "https/repo1.maven.org/maven2/ch/epfl/scala/bloop-native-bridge-0-5_2.12/2.1.2/bloop-native-bridge-0-5_2.12-2.1.2.jar",
+      "url": "https://repo1.maven.org/maven2/ch/epfl/scala/bloop-native-bridge-0-5_2.12/2.1.2/bloop-native-bridge-0-5_2.12-2.1.2.jar",
+      "hash": "sha256-OyH4AWXVrY1ObOd1FtMaMjANWOHe54vVZNXPiUlX/T0="
+    },
+    {
+      "path": "https/repo1.maven.org/maven2/ch/epfl/scala/bloop-native-bridge-0-5_2.12/2.1.2/bloop-native-bridge-0-5_2.12-2.1.2.pom",
+      "url": "https://repo1.maven.org/maven2/ch/epfl/scala/bloop-native-bridge-0-5_2.12/2.1.2/bloop-native-bridge-0-5_2.12-2.1.2.pom",
+      "hash": "sha256-WDJuyn1xHA+4LurgmKqlHlrRPYmkcRc6paNrfOzvQw8="
+    },
+    {
       "path": "https/repo1.maven.org/maven2/ch/epfl/scala/bloop-shared_2.12/2.1.2/bloop-shared_2.12-2.1.2.jar",
       "url": "https://repo1.maven.org/maven2/ch/epfl/scala/bloop-shared_2.12/2.1.2/bloop-shared_2.12-2.1.2.jar",
       "hash": "sha256-cF1kagYGQ//JDPuNHbhw+zkCXgpE1E0JfNiHjhBMJgI="
@@ -1970,5 +1980,5 @@
       "hash": "sha256-2LFOpAWyiLZRuOxht8nFFYSb1ulBgUGi6UkcX4Wa79c="
     }
   ],
-  "checksum": "2bc3543661627eb5edbb0d1f03b4e9cc52ef6b3a358034e981b29244e9408b5b"
+  "checksum": "4a360fd7bc67eb14f5f1dfad4888a8ff2b2fb5c2703ec42b099ad654d297788f"
 }

@@ -65,6 +65,7 @@ class PathTests(unittest.TestCase):
 
     def test_version_listing(self):
         self.assertTrue(cc.is_version_listing("https/repo1.maven.org/maven2/a/b/maven-metadata.xml"))
+        self.assertTrue(cc.is_version_listing("https/repo1.maven.org/maven2/org/scalameta/.directory"))
         self.assertFalse(cc.is_version_listing("https/repo1.maven.org/maven2/a/b/1.0/b-1.0.pom"))
 
 

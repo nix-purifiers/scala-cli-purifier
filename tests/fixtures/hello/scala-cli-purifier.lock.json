@@ -1855,16 +1855,6 @@
       "hash": "sha256-riGf0/xcImpg1iYz491ync3OyGS9MDy+wkfUtUdrhhM="
     },
     {
-      "path": "https/repo1.maven.org/maven2/org/virtuslab/scala-cli/test-runner_3/1.18.0/test-runner_3-1.18.0.jar",
-      "url": "https://repo1.maven.org/maven2/org/virtuslab/scala-cli/test-runner_3/1.18.0/test-runner_3-1.18.0.jar",
-      "hash": "sha256-objBgorZLOqeXR+ltakCTm5DCWFo64AUnQvEFS6rDZM="
-    },
-    {
-      "path": "https/repo1.maven.org/maven2/org/virtuslab/scala-cli/test-runner_3/1.18.0/test-runner_3-1.18.0.pom",
-      "url": "https://repo1.maven.org/maven2/org/virtuslab/scala-cli/test-runner_3/1.18.0/test-runner_3-1.18.0.pom",
-      "hash": "sha256-fuzAK3oEc1JNaH18oAYPxAtjnvvDZTQIOVkkHqc8d/0="
-    },
-    {
       "path": "https/repo1.maven.org/maven2/org/zeroturnaround/zt-zip/1.18.2/zt-zip-1.18.2.jar",
       "url": "https://repo1.maven.org/maven2/org/zeroturnaround/zt-zip/1.18.2/zt-zip-1.18.2.jar",
       "hash": "sha256-YzCUbQfEKzmu+tSfgxje4Jan+10NVyJ+j+tZFnuxfP8="
@@ -1875,5 +1865,5 @@
       "hash": "sha256-2LFOpAWyiLZRuOxht8nFFYSb1ulBgUGi6UkcX4Wa79c="
     }
   ],
-  "checksum": "25fdb9f386ccb1a67dc2a19c39e9628d5df6c4f13a13001864be62ea8088bcb1"
+  "checksum": "f88d72d41113f7dd92bd4536d68924f5bebd48d9bc9ef4d82ffc23a3714d7177"
 }
