@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
 #
-# Runs the test suite on x86_64-linux and aarch64-linux: `nix flake check`,
-# which runs the unit tests of the scala-cli-purifier command, builds every
-# fixture and the real-world projects in the Nix sandbox from their
-# lockfiles, and runs the negative tests; then relocks the fixtures and
-# requires the lockfiles to come out byte for byte the same.
+# Runs the test suite on x86_64-linux and aarch64-linux. The job `check`
+# runs `nix flake check`: the unit tests of the scala-cli-purifier command,
+# the builds of every fixture in the Nix sandbox from their lockfiles, and
+# the conformance checks of the purifier contract that run in the sandbox.
+# The jobs `conformance-relock` and `conformance-update` are the
+# conformance checks that need the network.
 name: check
 
 on:
@@ -28,5 +29,33 @@ jobs:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
       - name: Check the flake
         run: nix flake check --print-build-logs --keep-going
+
+  # Relocking every fixture reproduces its lockfile byte for byte.
+  conformance-relock:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
       - name: Relock the fixtures and compare
         run: bash tests/relock-reproduces.sh
+
+  # `lock` keeps the resolution of a lockfile, and `update` moves it to
+  # what is published now; each leaves a lockfile that passes the stale
+  # check.
+  conformance-update:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+      - name: Lock and update a fixture with an old version
+        run: bash tests/conformance-update.sh

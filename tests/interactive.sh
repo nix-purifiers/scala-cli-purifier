@@ -95,9 +95,9 @@ echo "the lock names the file: repository $name"
 built=$(nix build --no-link --print-out-paths --impure --expr "
   let
     flake = builtins.getFlake \"git+file://$root\";
+    pkgs = flake.inputs.nixpkgs.legacyPackages.\${builtins.currentSystem}.extend flake.overlays.default;
   in
-  (flake.lib.scala-cli-purifier.buildScalaCliProject {
-    pkgs = flake.inputs.nixpkgs.legacyPackages.\${builtins.currentSystem};
+  (pkgs.buildScalaCliProject {
     src = $project;
     localRepositories.\"$name\" = $repository;
   }).packages.file-repository-project")

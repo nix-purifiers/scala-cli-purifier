@@ -5,4 +5,5 @@
 .metals/
 .bloop/
 .idea/
+*.semanticdb
 __pycache__/

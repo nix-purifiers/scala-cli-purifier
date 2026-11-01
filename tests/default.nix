@@ -7,8 +7,10 @@
 # job of that name (.github/workflows/check.yml).
 {
   pkgs,
-  # The flake's library: lib.scala-cli-purifier.buildScalaCliProject, and
-  # the shared library as lib.purifier.
+  # The flake's default package overlay, which adds buildScalaCliProject.
+  overlay,
+  # The flake's library: lib.scala-cli-purifier.readLock, and the shared
+  # library as lib.purifier.
   flakeLib,
   # The scala-cli-purifier command, whose build runs its unit tests.
   cli,
@@ -17,9 +19,10 @@ let
   inherit (pkgs) lib;
 
   # Every fixture builds the way a consumer's package does: through the
-  # builder of the flake's library. The fixtures were locked with
-  # tests/relock-fixtures.sh.
-  build = args: flakeLib.scala-cli-purifier.buildScalaCliProject ({ inherit pkgs; } // args);
+  # builder that the overlay adds to a package set. The fixtures were
+  # locked with tests/relock-fixtures.sh.
+  withOverlay = pkgs.extend overlay;
+  build = withOverlay.buildScalaCliProject;
 
   # A Scala 3 project with a dependency and a munit suite, locked with
   # --test.
@@ -59,6 +62,21 @@ let
   # `scala-cli publish` writes in the sandbox.
   library = build { src = ./fixtures/library; };
 
+  # The core module of VirtusLab/besom, a Scala 3 library, built from its
+  # sources upstream at the tag v0.5.2 with a lockfile kept in this
+  # repository, as the Examples section of the README describes.
+  besomSource = builtins.fetchTree {
+    type = "github";
+    owner = "VirtusLab";
+    repo = "besom";
+    rev = "6017c8814ac885df3c10d06969d90e2c2d8b3f9d";
+    narHash = "sha256-5xGg+8oQBmjO6oHCsTjIlQQar/xd/n1ouzfArj2vh70=";
+  };
+  besomCore = build {
+    src = besomSource + "/core";
+    lockFile = ./examples/besom-core/scala-cli-purifier.lock.json;
+  };
+
   # The hello fixture kept external: its source holds only the project's
   # own files, and the purifier lockfile lies outside it.
   externalSource = lib.fileset.toSource {
@@ -88,10 +106,12 @@ let
 
   helloLock = builtins.fromJSON (builtins.readFile ./fixtures/hello/scala-cli-purifier.lock.json);
   # A lockfile with `data`, under a checksum that matches it, as if
-  # `scala-cli-purifier lock` had written it.
+  # `scala-cli-purifier lock` had written it. The lockfiles of these checks
+  # are written at evaluation with builtins.toFile, because readLock reads
+  # them at evaluation.
   writeLock =
     name: data:
-    pkgs.writeText name (
+    builtins.toFile name (
       builtins.toJSON (
         data
         // {
@@ -105,32 +125,30 @@ let
       src = ./fixtures/hello;
       inherit lockFile;
     };
-  firstJar = lib.findFirst (a: a ? url && lib.hasSuffix ".jar" a.url) null helloLock.artifacts;
+  # The jar of upickle, which the hello program needs.
+  neededJar = lib.findFirst (a: lib.hasSuffix "/upickle_3-4.0.2.jar" a.path) (throw "the hello lockfile holds no upickle jar") helloLock.artifacts;
 
   # The hello lockfile with a hash changed and the checksum left as it was.
-  tamperedLock = pkgs.writeText "tampered.lock.json" (
+  tamperedLock = builtins.toFile "tampered.lock.json" (
     builtins.toJSON (
       helloLock
       // {
         artifacts = map (
-          a: if a == firstJar then a // { hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; } else a
+          a: if a == neededJar then a // { hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; } else a
         ) helloLock.artifacts;
       }
     )
   );
   # The first half of the hello lockfile, which is not JSON.
-  malformedLock = pkgs.writeText "malformed.lock.json" (
+  malformedLock = builtins.toFile "malformed.lock.json" (
     let
       text = builtins.readFile ./fixtures/hello/scala-cli-purifier.lock.json;
     in
     builtins.substring 0 (builtins.stringLength text / 2) text
   );
-  # The hello fixture with a dependency added after it was locked.
-  staleHello = pkgs.runCommand "stale-hello-source" { } ''
-    cp -r ${./fixtures/hello} $out
-    chmod -R u+w $out
-    echo '//> using dep com.lihaoyi::pprint:0.9.0' >> $out/project.scala
-  '';
+  # The hello fixture with a dependency added after it was locked, without
+  # a lockfile.
+  staleHello = ./conformance/stale;
 
   # Passes when every line of `expected` is in the file `log`.
   expectLines = log: expected: ''
@@ -144,9 +162,9 @@ let
   '';
 
   # A check that `lockFile` fails in both places the contract names, with
-  # every line of `expected` in each message: at Nix evaluation of the
-  # builder's lockfile reader (nix-instantiate in the sandbox, on a store
-  # that holds nothing), and in the command, run in the project `src`.
+  # every line of `expected` in each message: at Nix evaluation of readLock
+  # (nix-instantiate in the sandbox, on a store that holds nothing), and in
+  # the command, run in the project `src`.
   lockFails =
     {
       name,
@@ -157,8 +175,13 @@ let
     pkgs.runCommand name { nativeBuildInputs = [ pkgs.nix ]; } ''
       export HOME=$TMPDIR/home NIX_STATE_DIR=$TMPDIR/nix-state NIX_CONF_DIR=$TMPDIR
       mkdir -p $HOME
-      if nix-instantiate --store dummy:// --eval --strict \
-        -E "import ${../nix/lib/lock.nix} { lockFile = ${lockFile}; }" 2> eval.log; then
+      if nix-instantiate --store dummy:// --eval --strict -E "
+        let
+          inherit (import ${../nix/lib}/lock.nix { lib = import ${pkgs.path}/lib; }) readLock;
+          lock = readLock { src = ${src}; lockFile = ${lockFile}; };
+        in
+        if lock.problems == [ ] then lock else throw (builtins.concatStringsSep \"\n\" lock.problems)
+      " 2> eval.log; then
         echo "${name}: Nix evaluated the lockfile" >&2
         exit 1
       fi
@@ -210,7 +233,9 @@ let
   helloDownloads = flakeLib.purifier.tree {
     inherit pkgs;
     name = "scala-cli-purifier-downloads";
-    entries = helloLock.artifacts;
+    entries = flakeLib.purifier.entriesFor pkgs.stdenv.buildPlatform.system (
+      flakeLib.scala-cli-purifier.readLock { src = ./fixtures/hello; }
+    );
   };
 in
 {
@@ -276,34 +301,16 @@ in
       '';
 
   # A project whose directives changed since the lock fails, naming the
-  # command to run: in the build, before scala-cli runs, and in the command.
-  conformance-stale = pkgs.runCommand "conformance-stale" {
-    failure = pkgs.testers.testBuildFailure (
-      build {
-        src = staleHello;
-        lockFile = ./fixtures/hello/scala-cli-purifier.lock.json;
-      }
-    ).packages.hello;
-  } ''
-    ${expectLines "$failure/testBuildFailure.log" [
+  # command to run: at evaluation and in the command.
+  conformance-stale = lockFails {
+    name = "conformance-stale";
+    src = staleHello;
+    lockFile = ./fixtures/hello/scala-cli-purifier.lock.json;
+    expected = [
       "directives changed"
       "scala-cli-purifier lock"
-    ]}
-    export HOME=$TMPDIR/home
-    cp -r ${staleHello} project
-    chmod -R u+w project
-    cd project
-    cp ${./fixtures/hello/scala-cli-purifier.lock.json} scala-cli-purifier.lock.json
-    if ${lib.getExe cli} prefetch 2> command.log; then
-      echo "the command read a stale lockfile" >&2
-      exit 1
-    fi
-    ${expectLines "command.log" [
-      "directives changed"
-      "scala-cli-purifier lock"
-    ]}
-    touch $out
-  '';
+    ];
+  };
 
   # A lockfile with a changed hash fails at evaluation and in the command.
   conformance-tampered = lockFails {
@@ -321,7 +328,7 @@ in
     buildFails "conformance-missing"
       (helloWith (
         writeLock "missing-entry.lock.json" (
-          helloLock // { artifacts = lib.remove firstJar helloLock.artifacts; }
+          helloLock // { artifacts = lib.remove neededJar helloLock.artifacts; }
         )
       )).packages.hello
       [
@@ -406,6 +413,66 @@ in
         python3 -I ${cli}/libexec/scala-cli-purifier/bsp.py .
         touch $out
       '';
+
+  # readLock gives every fixture a lock that checkLock of the shared
+  # library accepts, with the outputs the builder makes.
+  read-lock = pkgs.writeText "read-lock" (
+    builtins.toJSON (
+      lib.mapAttrs
+        (
+          name: src:
+          let
+            lock = flakeLib.purifier.checkLock (flakeLib.scala-cli-purifier.readLock { inherit src; });
+          in
+          {
+            entries = builtins.length lock.entries;
+            outputs = builtins.attrNames lock.outputs;
+          }
+        )
+        {
+          hello = ./fixtures/hello;
+          script = ./fixtures/script;
+          sources = ./fixtures/sources;
+          url = ./fixtures/url;
+          local = ./fixtures/local;
+          js = ./fixtures/js;
+          native = ./fixtures/native;
+          library = ./fixtures/library;
+        }
+    )
+  );
+
+  # A package written for callPackage takes the builder by name, as the
+  # Quickstart of the README shows.
+  consumer-package =
+    runs "consumer-package"
+      (withOverlay.callPackage (
+        { buildScalaCliProject }: (buildScalaCliProject { src = ./fixtures/hello; }).packages.hello
+      ) { })
+      [ ''{"hello":"Nix World"}'' ];
+
+  # buildScalaCliProject.override replaces what the builder takes from the
+  # package set: a scala-cli of another version than the lock was made with
+  # fails evaluation, naming both versions.
+  builder-override =
+    let
+      other = withOverlay.buildScalaCliProject.override {
+        scala-cli = pkgs.scala-cli.overrideAttrs {
+          version = "0.0.1";
+          __intentionallyOverridingVersion = true;
+        };
+      };
+      attempt = builtins.tryEval (other { src = ./fixtures/hello; }).packages.hello.drvPath;
+    in
+    assert !attempt.success || throw "builder-override: a scala-cli of another version evaluated";
+    pkgs.runCommand "builder-override" { } "touch $out";
+
+  # The jar of besom core holds its classes.
+  example-besom-core = pkgs.runCommand "example-besom-core" { nativeBuildInputs = [ pkgs.unzip ]; } ''
+    unzip -l ${besomCore.packages.besom-core}/share/java/besom-core.jar | grep -q 'besom/internal/Context.class'
+    mkdir -p $out
+    ln -s ${besomCore.packages.besom-core} $out/package
+  '';
 
   # The hello fixture kept external builds from the purifier lockfile
   # outside its source.

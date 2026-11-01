@@ -17,14 +17,11 @@
 }:
 let
   pkgs = import nixpkgs { };
-  inherit (pkgs) lib;
-  buildScalaCliProject = import ./build-scala-cli-project.nix {
-    inherit lib;
-    purifier = import purifierSource { inherit lib; };
+  buildScalaCliProject = pkgs.callPackage ./build-scala-cli-project.nix {
+    purifier = import purifierSource { inherit (pkgs) lib; };
   };
 in
 (buildScalaCliProject {
-  inherit pkgs;
   src = /. + src;
   lockFile = /. + lockFile;
 }).release

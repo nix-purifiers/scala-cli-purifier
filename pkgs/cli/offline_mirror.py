@@ -5,7 +5,7 @@ requests a build makes outside coursier's cache.
 Coursier reads a `url=` dependency by sending a HEAD request to its URL on
 every resolution, even in offline mode and with the file in its cache
 (coursier.util.InMemoryRepository.exists). Offline, in the Nix sandbox or in
-`scala-cli-purifier exec`, nothing answers that request. This proxy does:
+the scala-cli wrapper of the package, nothing answers that request. This proxy does:
 the build's JVM sends its requests here (-Dhttp(s).proxyHost/Port), the
 proxy terminates TLS with a certificate for the requested host, signed by a
 certificate authority made for this run, which the JVM trusts through

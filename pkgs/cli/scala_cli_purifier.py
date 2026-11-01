@@ -4,6 +4,7 @@ them for offline work, and publish what Nix built.
 
   scala-cli-purifier lock [--lockfile PATH] [--test] [--publish] [--no-ide]
                           [--name NAME] [--] [ARGS...]
+  scala-cli-purifier update [--lockfile PATH] [MODULE...]
   scala-cli-purifier prefetch [--lockfile PATH]
   scala-cli-purifier publish [--lockfile PATH] [OPTIONS] REPOSITORY
 
@@ -16,6 +17,12 @@ the Nix build runs it. ARGS are the scala-cli inputs and options; the
 default input is the current directory. --lockfile names another place for
 the lockfile, such as one outside the project; every command reads
 SCALA_CLI_PURIFIER_LOCKFILE when --lockfile is not given.
+
+A relock keeps the version listings the current lockfile holds, so a
+version range or a `latest` selector resolves as it did. `update` relocks
+with the options of the current lockfile and downloads the listings again:
+those of the named modules (`name`, `org:name` or `org::name`), or every
+one, so ranges resolve to what is published now.
 
 `prefetch` realizes every file of the lockfile in the Nix store, with a GC
 root in .scala-cli-purifier/ beside the lockfile, so the everyday loop and the editor work
@@ -41,6 +48,7 @@ The Nix package of this program sets the SCALA_CLI_PURIFIER_* variables
 below.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -48,7 +56,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 # The wrapper runs this file with `python3 -I`, which leaves the file's own
 # directory off sys.path.
@@ -224,16 +232,48 @@ def editor_session(root, work, java_home, arguments, platform, environment, mirr
     (bsp.editor_session): online in the lock run, so the lockfile holds the
     sources jars and the rest an editor needs, and offline in its check.
     Returns None when the compile succeeds and every dependency source is a
-    file, and what went wrong otherwise."""
+    file, and what went wrong otherwise.
+
+    The native scala-cli serves an editor through the Bloop compilation
+    server, which downloads a compiler bridge and its own jars, while the
+    JVM build of scala-cli compiles in its own process there. So the session
+    first compiles the main and test scopes on Bloop, which downloads those
+    files whichever build of scala-cli runs the lock."""
+    options = common_options(java_home, platform, offline=mirror_options is not None)
+    workspace = ["--workspace", str(work / "bsp-workspace"), *extra, *arguments]
+    # The Bloop server is a JVM of its own, which takes its temporary
+    # directory from these options rather than from the -D options of
+    # scala-cli.
+    on_bloop = [o for o in options if o != "--server=false"] + [
+        "--server=true",
+        f"--bloop-java-opt=-Djava.io.tmpdir={work / 'java-tmp'}",
+    ]
+    for scope in ([], ["--test"]):
+        compiled = subprocess.run(
+            [
+                env("SCALA_CLI_PURIFIER_SCALA_CLI"),
+                *java_properties(work, mirror_options, user_home),
+                "compile",
+                *on_bloop,
+                *scope,
+                *workspace,
+            ],
+            cwd=root,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        if compiled.returncode != 0:
+            return compiled.stdout + "\nthe compilation server could not compile the project"
     argv = [
         env("SCALA_CLI_PURIFIER_SCALA_CLI"),
         *java_properties(work, mirror_options, user_home),
         "bsp",
-        *common_options(java_home, platform, offline=mirror_options is not None),
-        "--workspace",
-        str(work / "bsp-workspace"),
-        *extra,
-        *arguments,
+        *options,
+        *workspace,
     ]
     messages = []
     try:
@@ -334,7 +374,10 @@ def java_version(java_home):
 
 
 def default_java_home():
-    return os.environ.get("JAVA_HOME") or env("SCALA_CLI_PURIFIER_JAVA_HOME")
+    # The JDK of the package, which SCALA_CLI_PURIFIER_JAVA_HOME can replace.
+    # JAVA_HOME is left alone: a CI runner sets it to a JDK of its own, and a
+    # relock there would record another Java version than the lockfile.
+    return env("SCALA_CLI_PURIFIER_JAVA_HOME")
 
 
 # --- lock -----------------------------------------------------------------
@@ -417,6 +460,73 @@ def published_files(repository):
     return entries
 
 
+def module_of(path):
+    """The organization path and the module directory of a version listing
+    at a cache path, such as ("com/lihaoyi", "sourcecode_3")."""
+    parts = PurePosixPath(coursier_cache.url_of(path).split("://", 1)[1]).parts
+    # A listing lies in the module directory, or in a version directory
+    # below it for a snapshot.
+    module = len(parts) - 2
+    if module >= 2 and re.match(r"\d", parts[module]):
+        module -= 1
+    return "/".join(parts[1:module]), parts[module]
+
+
+def selected(path, names):
+    """Whether the version listing at `path` belongs to a module of `names`:
+    `name`, `org:name` or `org::name`, where `name` also matches the module
+    with a Scala suffix, such as sourcecode_3 for sourcecode."""
+    org, module = module_of(path)
+    for spec in names:
+        spec_org, _, spec_name = spec.replace("::", ":").rpartition(":")
+        if spec_org and not org.endswith(spec_org.replace(".", "/")):
+            continue
+        if module == spec_name or module.startswith(spec_name + "_"):
+            return True
+    return False
+
+
+def kept_listings(lockfile_path, update):
+    """The version listings of the current lockfile that the lock run keeps:
+    every one for `lock` (update is None), none for `update` with no module
+    names, and those of other modules for `update` with names. The lock run
+    resolves version ranges and `latest` selectors against the listings it
+    keeps, as the lock that wrote them did."""
+    if update == [] or not lockfile_path.is_file():
+        return []
+    try:
+        current = lockfile.read(lockfile_path)
+    except lockfile.LockfileError:
+        return []
+    listings = [
+        e for e in current["artifacts"] if "contents" in e and coursier_cache.is_version_listing(e["path"])
+    ]
+    return [e for e in listings if not (update and selected(e["path"], update))]
+
+
+def seed_listings(cache, listings, mirrors):
+    """Writes each kept listing into the empty cache of the lock run at the
+    path the lock run reads it from: that of the first mirror of its
+    repository, which the lock run downloads the repository through, or its
+    own. Coursier takes a cached listing as up to date when its checksum file
+    is beside it and it was checked within a day, which the hidden marker
+    files `.<name>.checked` record."""
+    for entry in listings:
+        url = coursier_cache.url_of(entry["path"])
+        rel = entry["path"]
+        for base, alternates in mirrors.items():
+            if url.startswith(base.rstrip("/") + "/") and alternates:
+                rel = coursier_cache.cache_path(alternates[0].rstrip("/") + url[len(base.rstrip("/")) :])
+        target = cache / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        contents = entry["contents"].encode("utf-8")
+        target.write_bytes(contents)
+        checksum = target.with_name(target.name + ".sha1")
+        checksum.write_text(hashlib.sha1(contents).hexdigest())
+        for written in (target, checksum):
+            (written.parent / f".{written.name}.checked").touch()
+
+
 def parse_lock_args(args):
     options = {"test": False, "publish": False, "ide": True, "name": None}
     arguments = []
@@ -437,7 +547,10 @@ def parse_lock_args(args):
     return options, arguments or ["."]
 
 
-def lock(args):
+def lock(args, update=None):
+    """Writes the lockfile. With `update` (a list of module names, empty for
+    every module), the lock run downloads the version listings of those
+    modules again instead of keeping the ones the current lockfile holds."""
     lockfile_path, args = take_lockfile(args)
     options, arguments = parse_lock_args(args)
     test, publish, ide = options["test"], options["publish"], options["ide"]
@@ -455,6 +568,7 @@ def lock(args):
         environment = isolated_env(run_dir, cache, offline=False)
         mirrors = central_mirrors()
         configure_mirrors(environment, mirrors)
+        seed_listings(cache, kept_listings(lockfile_path, update), mirrors)
         user_home = home_override()
         platform, resolvers = detect_platform(root, run_dir, java_home, arguments, environment, user_home)
         print(f"scala-cli-purifier: building for {platform} with an empty coursier cache", file=sys.stderr)
@@ -506,7 +620,13 @@ def lock(args):
         artifacts = coursier_cache.entries(cache, fetched, mirrors) + coursier_cache.inline_entries(
             cache, inlined, mirrors
         )
-        artifacts.sort(key=lambda e: e["path"])
+        # Nix adds the mirrors of each URL at evaluation (nix/lib/lock.nix),
+        # so the lockfile is the same whichever mirror the lock run used.
+        for entry in artifacts:
+            entry.pop("mirrors", None)
+        # A file the lock run read under a mirror and under its repository
+        # has one canonical path, and the lockfile holds it once.
+        artifacts = list({e["path"]: e for e in sorted(artifacts, key=lambda e: e["path"])}.values())
         published = published_files(run_dir / "publication") if publish else []
 
     data = {
@@ -527,6 +647,25 @@ def lock(args):
     data["checksum"] = lockfile.checksum(data)
     lockfile_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     print(f"scala-cli-purifier: wrote {lockfile_path} ({len(artifacts)} files)", file=sys.stderr)
+
+
+def update(args):
+    """`lock` with the options of the current lockfile, downloading the
+    version listings of the named modules, or of every module, again, so
+    version ranges and `latest` selectors resolve to what is published
+    now."""
+    lockfile_path, names = take_lockfile(args)
+    unknown = [n for n in names if n.startswith("-")]
+    if unknown:
+        raise PurifierError(f"update takes module names, such as com.lihaoyi::sourcecode, and --lockfile: {unknown}")
+    if not lockfile_path.is_file():
+        raise PurifierError(f"no {lockfile_path.name} at {lockfile_path.parent}; run `scala-cli-purifier lock` first")
+    current = lockfile.read(lockfile_path)
+    options = ["--lockfile", str(lockfile_path), "--name", current["name"]]
+    options += ["--test"] if current.get("test") else []
+    options += ["--publish"] if current.get("publish") else []
+    options += [] if current.get("ide", True) else ["--no-ide"]
+    lock([*options, "--", *current["arguments"]], update=names)
 
 
 # --- reading a lockfile ---------------------------------------------------
@@ -592,13 +731,16 @@ def prefetch(args):
         [
             "nix-build",
             f"{env('SCALA_CLI_PURIFIER_LIB')}/prefetch.nix",
-            "--arg",
+            "--argstr",
             "nixpkgs",
             env("SCALA_CLI_PURIFIER_NIXPKGS"),
-            "--arg",
+            "--argstr",
             "purifierSource",
             env("SCALA_CLI_PURIFIER_PURIFIER"),
-            "--arg",
+            "--argstr",
+            "src",
+            str(root),
+            "--argstr",
             "lockFile",
             str(lockfile_path),
             "--out-link",
@@ -835,12 +977,14 @@ def main(argv):
     try:
         if verb == "lock":
             lock(args)
+        elif verb == "update":
+            update(args)
         elif verb == "prefetch":
             prefetch(args)
         elif verb == "publish":
             publish(args)
         else:
-            raise PurifierError(f"unknown command '{verb}'; the commands are lock, prefetch and publish")
+            raise PurifierError(f"unknown command '{verb}'; the commands are lock, update, prefetch and publish")
     except (
         PurifierError,
         publication.PublishError,

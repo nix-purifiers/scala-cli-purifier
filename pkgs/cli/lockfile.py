@@ -12,16 +12,13 @@ A lockfile carries two hashes besides its entries:
                    the lock, such as one with a dependency added, no longer
                    matches it.
 
-  python3 lockfile.py check-directives ROOT LOCKFILE
-
-exits non-zero, saying what to run, when the project at ROOT no longer has
-the directives LOCKFILE was made from. The Nix build runs it.
+The commands check both before they use a lockfile; Nix checks both at
+evaluation (nix/lib/lock.nix).
 """
 
 import hashlib
 import json
 import re
-import sys
 from pathlib import Path
 
 LOCK_FILE = "scala-cli-purifier.lock.json"
@@ -31,7 +28,7 @@ SOURCE_SUFFIXES = (".scala", ".sc", ".java", ".md")
 # Directories that are build output or editor state, never sources; the Nix
 # build leaves them out of its copy of the project too.
 SKIPPED_DIRECTORIES = {".scala-build", ".scala-cli-purifier", ".bsp", ".metals", ".bloop", ".git", ".idea"}
-DIRECTIVE = re.compile(r"^\s*//>")
+DIRECTIVE = re.compile(r"^[ \t]*//>")
 
 
 class LockfileError(Exception):
@@ -59,31 +56,36 @@ def source_files(root, arguments):
         if argument.startswith("-"):
             continue
         path = (root / argument).resolve()
+        # Symbolic links are skipped, as Nix's readDir lists them apart from
+        # files and directories.
         if path.is_file() and path.suffix in SOURCE_SUFFIXES:
             found.add(path)
         elif path.is_dir():
             for file in path.rglob("*"):
                 parts = set(file.relative_to(path).parts)
-                if file.is_file() and file.suffix in SOURCE_SUFFIXES and not parts & SKIPPED_DIRECTORIES:
+                if not file.is_symlink() and file.is_file() and file.suffix in SOURCE_SUFFIXES and not parts & SKIPPED_DIRECTORIES:
                     found.add(file)
     root = root.resolve()
     return sorted(f.relative_to(root).as_posix() if f.is_relative_to(root) else f.as_posix() for f in found)
 
 
 def directives_hash(root, arguments):
-    """The hash of the `//> using` directives of the project's sources,
-    with the path of each file that has any."""
+    """The hash of the `//> using` directives of the project's sources: the
+    sha256 of the canonical JSON list of [file, [directive, ...]] for each
+    source file that has directives. Nix computes the same hash at
+    evaluation (nix/lib/lock.nix), so the two split lines and strip blanks
+    the same way."""
     root = Path(root)
-    digest = hashlib.sha256()
+    found = []
     for rel in source_files(root, arguments):
         try:
-            lines = (root / rel).read_text(encoding="utf-8", errors="replace").splitlines()
+            lines = (root / rel).read_text(encoding="utf-8", errors="replace").split("\n")
         except OSError:
             continue
-        directives = [line.strip() for line in lines if DIRECTIVE.match(line)]
+        directives = [line.strip(" \t\r") for line in lines if DIRECTIVE.match(line)]
         if directives:
-            digest.update(rel.encode() + b"\0" + "\n".join(directives).encode() + b"\0")
-    return digest.hexdigest()
+            found.append([rel, directives])
+    return hashlib.sha256(canonical(found).encode("utf-8")).hexdigest()
 
 
 def read(path):
@@ -111,20 +113,3 @@ def check_directives(root, data, path):
             f"the project's `//> using` directives changed since {path} was made, so it may lack what they need."
             " Run `scala-cli-purifier lock` to lock them"
         )
-
-
-def main(argv):
-    if len(argv) != 4 or argv[1] != "check-directives":
-        print(__doc__.strip(), file=sys.stderr)
-        return 2
-    root, path = Path(argv[2]), Path(argv[3])
-    try:
-        check_directives(root, json.loads(path.read_text()), LOCK_FILE)
-    except LockfileError as e:
-        print(f"scala-cli-purifier: {e}", file=sys.stderr)
-        return 1
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))

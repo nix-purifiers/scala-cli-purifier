@@ -1,13 +1,20 @@
 # SPDX-License-Identifier: MIT
 #
 # buildScalaCliProject: the sandboxed build of a scala-cli project, from the
-# lockfile `scala-cli-purifier lock` writes at the project root. The flake
-# publishes it as lib.scala-cli-purifier.buildScalaCliProject:
+# lockfile `scala-cli-purifier lock` writes at the project root.
 #
-#   lib.scala-cli-purifier.buildScalaCliProject { inherit pkgs; src = ./.; }
+# The file is a package for callPackage: the first argument set is what it
+# takes from the package set, and the result is the builder. The
+# scala-cli-purifier overlay (`overlays.default`) adds it to the package set
+# as `buildScalaCliProject`, so a package written for callPackage takes it
+# like any other builder:
 #
-# The first argument set is the library: `lib` and `purifier`, the library
-# the nix-purifiers share. The builder returns
+#   { buildScalaCliProject }: (buildScalaCliProject { src = ./.; }).packages.app
+#
+# and `buildScalaCliProject.override` replaces what it takes from the set,
+# such as `scala-cli`. The overlay passes `purifier`, the library the
+# nix-purifiers share, from the scala-cli-purifier flake. The builder
+# returns
 #
 #   packages.<name>   the project's program, under the name the lock
 #                     records, packaged for its platform:
@@ -22,18 +29,40 @@
 #                     repository directory: the project's jar, sources,
 #                     Scaladoc and POM, with checksums. It needs a lock made
 #                     with --publish; `scala-cli-purifier publish` uploads it.
-#   fetches           the lockfile's entries, in the format of the purifier
-#                     library: what the build fetches
+#   fetches           the entries of the lock (readLock in lock.nix), in the
+#                     format of the purifier library: what the build fetches
 #   artifacts         every output file by name, known from the lock before
 #                     anything is built: `program` (bin/<name>), the
 #                     program's `<name>.jar` or `<name>.js`, and each file
 #                     of the release under its name without the version,
 #                     such as `greeting_3.jar`, `greeting_3-sources.jar` or
 #                     `greeting_3.pom`
-{ lib, purifier }:
 {
-  # The nixpkgs package set the build runs with.
-  pkgs,
+  lib,
+  purifier,
+  stdenvNoCC,
+  makeWrapper,
+  # The JDKs a build can run on; the default JDK of a build is the headless
+  # one of the major version its lock was made with.
+  javaPackages,
+  nodejs,
+  clang,
+  which,
+  python3,
+  openssl,
+  strip-nondeterminism,
+  # What the `tree` of the purifier library fetches and lays out the locked
+  # files with.
+  fetchurl,
+  runCommand,
+  writeText,
+  unzip,
+  zstd,
+  # The scala-cli the lock was made with. scala-cli downloads tools of its
+  # own version, so another version would ask for files the lock lacks.
+  scala-cli,
+}:
+{
   # The root of the scala-cli project.
   src,
   # Fetchers that replace the fetchers of nixpkgs, passed to the `tree` of
@@ -46,9 +75,6 @@
   lockFile ? src + "/scala-cli-purifier.lock.json",
   # The JDK that runs scala-cli's compiler and a JVM program.
   jdk ? null,
-  # The scala-cli the lock was made with. scala-cli downloads tools of its
-  # own version, so another version would ask for files the lock lacks.
-  scala-cli ? pkgs.scala-cli,
   # Filters the project root before it is copied into the store, as the
   # `filter` of builtins.path. The default leaves out build outputs, editor
   # state and the purifier's own state.
@@ -61,19 +87,12 @@
   localRepositories ? { },
 }:
 let
-  inherit (pkgs)
-    stdenvNoCC
-    makeWrapper
-    javaPackages
-    nodejs
-    clang
-    which
-    python3
-    openssl
-    strip-nondeterminism
-    ;
-
-  lock = import ./lock.nix { inherit lockFile; };
+  lockLib = import ./lock.nix { inherit lib; };
+  # The lock in memory, which checkLock of the purifier library accepts
+  # only when the lockfile is usable for `src`; it fails evaluation with the
+  # problems otherwise, each naming the command that fixes it.
+  checked = purifier.checkLock (lockLib.readLock { inherit src lockFile; });
+  lock = builtins.seq checked (lockLib.parse lockFile);
   platform = lock.platform or "JVM";
   name = lock.name;
 
@@ -115,9 +134,18 @@ let
   # link into the store.
   dependencies = purifier.tree (
     {
-      inherit pkgs;
+      pkgs = {
+        inherit
+          fetchurl
+          runCommand
+          writeText
+          python3
+          unzip
+          zstd
+          ;
+      };
       name = "scala-cli-coursier-cache";
-      entries = lock.artifacts;
+      entries = purifier.entriesFor stdenvNoCC.buildPlatform.system checked;
     }
     // fetchers
   );
@@ -140,14 +168,13 @@ let
     command:
     ''scala-cli -Djava.io.tmpdir="$TMPDIR/java-tmp" -Duser.home="$TMPDIR/user-home" $mirrorOptions ${command} ${lib.escapeShellArgs common} ${localRepositoryOptions}'';
 
-  # The offline mirror, the staging of local repositories, the lockfile
-  # checks, and the coursier cache module they import.
+  # The offline mirror, the staging of local repositories, and the
+  # coursier cache module they import.
   mirrorSource = lib.fileset.toSource {
     root = ../../pkgs/cli;
     fileset = lib.fileset.unions [
       ../../pkgs/cli/offline_mirror.py
       ../../pkgs/cli/local_repositories.py
-      ../../pkgs/cli/lockfile.py
       ../../pkgs/cli/coursier_cache.py
     ];
   };
@@ -247,12 +274,6 @@ let
         exit "$status"
       fi
     }
-
-    # Fails with what to run when the project's `//> using` directives
-    # changed since the lock.
-    checkDirectives() {
-      ${python3.interpreter} -I ${mirrorSource}/lockfile.py check-directives "$PWD" ${lockFile}
-    }
   '';
   stopMirror = ''kill "$mirrorPid" 2>/dev/null || true'';
 
@@ -283,7 +304,6 @@ let
       postUnpack = setup;
       buildPhase = ''
         runHook preBuild
-        checkDirectives
         ${run}
         ${stopMirror}
         runHook postBuild
@@ -321,25 +341,10 @@ let
     }
     .${platform};
 
-  # The files of the package by name, relative to its output.
-  programFiles = {
-    program = "bin/${name}";
-  }
-  // {
-    JVM."${name}.jar" = "share/java/${name}.jar";
-    JS."${name}.js" = "share/${name}/${name}.js";
-    Native = { };
-  }
-  .${platform};
-
-  # The files of the release by name, relative to its output, as the lock
-  # run recorded them.
-  releaseFiles = builtins.listToAttrs (
-    map (f: {
-      inherit (f) name;
-      value = f.path;
-    }) (lock.publication or [ ])
-  );
+  # The files of the package and of the release by name, relative to
+  # their outputs, as the lock names them.
+  programFiles = checked.outputs.${name}.files;
+  releaseFiles = checked.outputs.release.files or { };
 
   package = step {
     pname = name;
@@ -416,6 +421,6 @@ assert
 {
   packages.${name} = package;
   inherit tests release;
-  fetches = lock.artifacts;
+  fetches = checked.entries;
   artifacts = package.artifacts // lib.optionalAttrs (lock.publish or false) release.artifacts;
 }

@@ -3,6 +3,7 @@
 options, the names of published files, and the checks `prefetch`, the scala-cli wrapper and
 `publish` make before they run."""
 
+import hashlib
 import json
 import os
 import tempfile
@@ -133,6 +134,53 @@ class ReadLockTests(unittest.TestCase):
         (state / "prefetched").write_text(locked["checksum"] + "\n")
         cache = scp.prefetched_cache(self.root / scp.LOCK_FILE, locked)
         self.assertEqual((cache / "https" / "repo" / "a.jar").resolve(), jar.resolve())
+
+
+class ListingTests(unittest.TestCase):
+    SOURCECODE = "https/repo1.maven.org/maven2/com/lihaoyi/sourcecode_3/maven-metadata.xml"
+    HICCUP = "https/repo.clojars.org/hiccup/hiccup/maven-metadata.xml"
+
+    def test_module_of(self):
+        self.assertEqual(scp.module_of(self.SOURCECODE), ("maven2/com/lihaoyi", "sourcecode_3"))
+        self.assertEqual(scp.module_of(self.HICCUP), ("hiccup", "hiccup"))
+
+    def test_selected(self):
+        for spec in ["sourcecode", "com.lihaoyi::sourcecode", "com.lihaoyi:sourcecode_3"]:
+            self.assertTrue(scp.selected(self.SOURCECODE, [spec]), spec)
+        for spec in ["source", "org.other::sourcecode", "hiccup"]:
+            self.assertFalse(scp.selected(self.SOURCECODE, [spec]), spec)
+
+    def write_lock(self, root):
+        data = {
+            "artifacts": [
+                {"path": self.SOURCECODE, "contents": "<sourcecode/>"},
+                {"path": self.HICCUP, "contents": "<hiccup/>"},
+                {"path": "https/repo1.maven.org/maven2/a/b/1/b-1.jar", "url": "u", "hash": "h"},
+            ]
+        }
+        data["checksum"] = lockfile.checksum(data)
+        path = root / scp.LOCK_FILE
+        path.write_text(json.dumps(data))
+        return path
+
+    def test_kept_listings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write_lock(Path(tmp))
+            self.assertEqual(len(scp.kept_listings(path, None)), 2)
+            self.assertEqual(scp.kept_listings(path, []), [])
+            self.assertEqual([e["path"] for e in scp.kept_listings(path, ["sourcecode"])], [self.HICCUP])
+            self.assertEqual(scp.kept_listings(Path(tmp) / "absent.json", None), [])
+
+    def test_seed_through_a_mirror(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            mirror = "https://mirror.example/maven2"
+            scp.seed_listings(cache, [{"path": self.SOURCECODE, "contents": "x"}], {scp.MAVEN_CENTRAL: [mirror]})
+            listing = cache / "https/mirror.example/maven2/com/lihaoyi/sourcecode_3/maven-metadata.xml"
+            self.assertEqual(listing.read_text(), "x")
+            self.assertEqual(listing.with_name("maven-metadata.xml.sha1").read_text(), hashlib.sha1(b"x").hexdigest())
+            self.assertTrue(listing.with_name(".maven-metadata.xml.checked").is_file())
+            self.assertFalse((cache / self.SOURCECODE).exists())
 
 
 class LockfileOptionTests(unittest.TestCase):

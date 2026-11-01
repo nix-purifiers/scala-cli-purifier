@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 #
-# Relocks a copy of the fixtures and requires that each new lockfile is the
-# committed one, byte for byte. Run from the repository root; it needs the
-# network.
-#
-# The sources and js fixtures are left out: their lockfiles hold version
-# listings inline, whose content changes upstream whenever a version is
-# published.
+# The conformance-relock check of the purifier contract, which needs the
+# network, so CI runs it as a job: relocks a copy of every fixture and
+# requires that each new lockfile is the committed one, byte for byte. A
+# relock keeps the version listings a lockfile holds inline (the sources
+# and js fixtures hold some), so those fixtures reproduce too. Run from the
+# repository root.
 set -euo pipefail
 copy=$(mktemp -d)
 trap 'rm -rf "$copy"' EXIT
 cp -r tests/fixtures/. "$copy"
 chmod -R u+w "$copy"
-fixtures=(hello script url local native library)
+fixtures=(hello script sources url local js native library)
 FIXTURES="$copy" bash tests/relock-fixtures.sh "${fixtures[@]}"
 status=0
 for fixture in "${fixtures[@]}"; do
