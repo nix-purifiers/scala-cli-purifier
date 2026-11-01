@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-{ ... }:
+{ closure-lib, ... }:
 {
   config,
   inputs,
@@ -8,21 +8,19 @@
 }:
 {
 
-  imports = [ inputs.flake-parts.flakeModules.partitions ];
+  imports = [
+    inputs.flake-parts.flakeModules.partitions
+    # Publishes the derivations of the scope pkgs.scala-cli-purifier as the
+    # packages of the flake.
+    closure-lib.caisson.modules.flake."purifier/purifier-packages"
+  ];
+
+  purifier.scope = "scala-cli-purifier";
 
   debug = false;
   caisson = {
     libOverlays.exported = libOverlays: {
       inherit (libOverlays) default;
-    };
-
-    # The `default` entry of this flake's package overlay registry
-    # (pkg-overlays/) is applied to the package set by default, and the flake
-    # exports it as `pkgOverlays` and as the plain `overlays.default`. The
-    # flake publishes the derivations of the scope itself, below, so the
-    # export of the packages of the overlay is off.
-    nixpkgs = {
-      packages.export.enabled = false;
     };
   };
 
@@ -31,11 +29,7 @@
   perSystem =
     { pkgs, self', ... }:
     {
-      # The derivations of the scope pkgs.scala-cli-purifier, and the
-      # default package.
-      packages = lib.filterAttrs (_: lib.isDerivation) pkgs.scala-cli-purifier // {
-        default = self'.packages.cli;
-      };
+      packages.default = self'.packages.cli;
       devShells.default = pkgs.mkShell {
         packages = [
           self'.packages.cli
