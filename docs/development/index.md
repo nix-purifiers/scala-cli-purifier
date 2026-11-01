@@ -37,9 +37,10 @@ The repository is a caisson flake, laid out like sbt-nix-backend.
   `default.nix` at the revision of the flake's `flake.lock`.
 - `lib-overlays/default/` adds `readLock` to the library as
   `lib.scala-cli-purifier.readLock`.
-- `pkg-overlays/default/` adds the packages of `pkgs/` under
-  `pkgs.scala-cli-purifier`, and the builder as `pkgs.buildScalaCliProject`,
-  a callPackage package that takes the purifier library of this flake.
+- `pkg-overlays/default/` adds the scope `pkgs.scala-cli-purifier`, which
+  `pkgs/default.nix` lists: the command `cli` and the builder
+  `buildScalaCliProject`, a callPackage package that takes the purifier
+  library of this flake.
 - `tests/` holds the flake checks, the fixtures and their lockfiles.
 
 The lockfile's `artifacts` are entries of the shared library's format,

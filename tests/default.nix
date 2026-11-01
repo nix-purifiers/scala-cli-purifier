@@ -7,7 +7,8 @@
 # job of that name (.github/workflows/check.yml).
 {
   pkgs,
-  # The flake's default package overlay, which adds buildScalaCliProject.
+  # The flake's default package overlay, which adds the scope
+  # pkgs.scala-cli-purifier with buildScalaCliProject.
   overlay,
   # The flake's library: lib.scala-cli-purifier.readLock, and the shared
   # library as lib.purifier.
@@ -22,7 +23,7 @@ let
   # builder that the overlay adds to a package set. The fixtures were
   # locked with tests/relock-fixtures.sh.
   withOverlay = pkgs.extend overlay;
-  build = withOverlay.buildScalaCliProject;
+  build = withOverlay.scala-cli-purifier.buildScalaCliProject;
 
   # A Scala 3 project with a dependency and a munit suite, locked with
   # --test.
@@ -237,6 +238,20 @@ let
       flakeLib.scala-cli-purifier.readLock { src = ./fixtures/hello; }
     );
   };
+  # A scala-cli of another version than the lock was made with, which fails
+  # evaluation, naming both versions.
+  otherScalaCli = pkgs.scala-cli.overrideAttrs {
+    version = "0.0.1";
+    __intentionallyOverridingVersion = true;
+  };
+  # Passes when evaluating the hello fixture with `builder` fails.
+  failsToEvaluate =
+    name: builder:
+    let
+      attempt = builtins.tryEval (builder { src = ./fixtures/hello; }).packages.hello.drvPath;
+    in
+    assert !attempt.success || throw "${name}: a scala-cli of another version evaluated";
+    pkgs.runCommand name { } "touch $out";
 in
 {
   inherit cli;
@@ -442,30 +457,27 @@ in
     )
   );
 
-  # A package written for callPackage takes the builder by name, as the
-  # Quickstart of the README shows.
+  # A package written for callPackage takes the builder through the scope,
+  # as the Quickstart of the README shows.
   consumer-package =
     runs "consumer-package"
       (withOverlay.callPackage (
-        { buildScalaCliProject }: (buildScalaCliProject { src = ./fixtures/hello; }).packages.hello
+        { scala-cli-purifier }:
+        (scala-cli-purifier.buildScalaCliProject { src = ./fixtures/hello; }).packages.hello
       ) { })
       [ ''{"hello":"Nix World"}'' ];
 
   # buildScalaCliProject.override replaces what the builder takes from the
-  # package set: a scala-cli of another version than the lock was made with
-  # fails evaluation, naming both versions.
-  builder-override =
-    let
-      other = withOverlay.buildScalaCliProject.override {
-        scala-cli = pkgs.scala-cli.overrideAttrs {
-          version = "0.0.1";
-          __intentionallyOverridingVersion = true;
-        };
-      };
-      attempt = builtins.tryEval (other { src = ./fixtures/hello; }).packages.hello.drvPath;
-    in
-    assert !attempt.success || throw "builder-override: a scala-cli of another version evaluated";
-    pkgs.runCommand "builder-override" { } "touch $out";
+  # package set.
+  builder-override = failsToEvaluate "builder-override" (
+    withOverlay.scala-cli-purifier.buildScalaCliProject.override { scala-cli = otherScalaCli; }
+  );
+
+  # scala-cli-purifier.overrideScope replaces what the members of the scope
+  # take, the builder among them.
+  scope-override = failsToEvaluate "scope-override" (
+    withOverlay.scala-cli-purifier.overrideScope (final: prev: { scala-cli = otherScalaCli; })
+  ).buildScalaCliProject;
 
   # The jar of besom core holds its classes.
   example-besom-core = pkgs.runCommand "example-besom-core" { nativeBuildInputs = [ pkgs.unzip ]; } ''

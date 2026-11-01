@@ -97,7 +97,7 @@ built=$(nix build --no-link --print-out-paths --impure --expr "
     flake = builtins.getFlake \"git+file://$root\";
     pkgs = flake.inputs.nixpkgs.legacyPackages.\${builtins.currentSystem}.extend flake.overlays.default;
   in
-  (pkgs.buildScalaCliProject {
+  (pkgs.scala-cli-purifier.buildScalaCliProject {
     src = $project;
     localRepositories.\"$name\" = $repository;
   }).packages.file-repository-project")

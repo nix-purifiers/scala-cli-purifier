@@ -31,14 +31,15 @@ records every download of the project, and it lies at the project root.
 scala-cli has no plugin mechanism, so the command runs scala-cli itself
 with the options of the lock run.
 
-The flake's `overlays.default` adds `buildScalaCliProject` to a package set,
-where nixpkgs keeps its own builders, and a package written for
-`callPackage` takes it by name:
+The `overlays.default` of the flake adds one attribute to a package set,
+the scope `scala-cli-purifier`, which holds the builder
+`buildScalaCliProject` and the command `cli`. A package written for
+`callPackage` takes the scope by name:
 
 ```nix
 # package.nix
-{ buildScalaCliProject }:
-(buildScalaCliProject { src = ./.; }).packages.app
+{ scala-cli-purifier }:
+(scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.app
 ```
 
 ```nix
@@ -85,7 +86,9 @@ The builder takes `src`, `lockFile`, `fetchers`, `jdk`, `srcFilter` and
 one. `fetchers.fetchurl` replaces the fetcher of the locked files, for
 credentials or a company mirror, and takes the arguments the `fetchurl` of
 nixpkgs takes. `buildScalaCliProject.override` replaces what the builder
-takes from the package set, such as `scala-cli`.
+takes from the package set, such as `scala-cli`, and
+`scala-cli-purifier.overrideScope` replaces it for every member of the
+scope.
 `lib.scala-cli-purifier.readLock { src; }` gives the lock of a project in
 the shape every purifier shares, with its problems listed, for tools that
 read locks.
@@ -276,7 +279,7 @@ The flake in `~/besom-packaging` builds the module from besom's sources:
         inherit system;
         overlays = [ scala-cli-purifier.overlays.default ];
       };
-      core = pkgs.buildScalaCliProject {
+      core = pkgs.scala-cli-purifier.buildScalaCliProject {
         src = "${besom}/core";
         lockFile = ./scala-cli-purifier.lock.json;
       };

@@ -5,16 +5,17 @@
 #
 # The file is a package for callPackage: the first argument set is what it
 # takes from the package set, and the result is the builder. The
-# scala-cli-purifier overlay (`overlays.default`) adds it to the package set
-# as `buildScalaCliProject`, so a package written for callPackage takes it
-# like any other builder:
+# scala-cli-purifier overlay (`overlays.default`) adds it to the scope
+# `pkgs.scala-cli-purifier`, so a package written for callPackage takes it
+# through the scope:
 #
-#   { buildScalaCliProject }: (buildScalaCliProject { src = ./.; }).packages.app
+#   { scala-cli-purifier }:
+#   (scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.app
 #
-# and `buildScalaCliProject.override` replaces what it takes from the set,
-# such as `scala-cli`. The overlay passes `purifier`, the library the
-# nix-purifiers share, from the scala-cli-purifier flake. The builder
-# returns
+# `buildScalaCliProject.override` replaces what it takes from the set, such
+# as `scala-cli`, and `scala-cli-purifier.overrideScope` replaces it for the
+# whole scope. The scope passes `purifier`, the library the nix-purifiers
+# share, from the scala-cli-purifier flake. The builder returns
 #
 #   packages.<name>   the project's program, under the name the lock
 #                     records, packaged for its platform:
