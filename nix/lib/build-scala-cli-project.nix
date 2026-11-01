@@ -134,11 +134,6 @@ let
   # link into the store.
   dependencies = purifier.tree (
     {
-      # The `tree` of the purifier library builds the tree with
-      # pkgs.runCommand, and fetches with the packages it is given.
-      pkgs = {
-        inherit runCommand;
-      };
       inherit
         fetchurl
         runCommand
