@@ -1,0 +1,8 @@
+/result*
+.scala-build/
+.scala-cli-purifier/
+.bsp/
+.metals/
+.bloop/
+.idea/
+__pycache__/
