@@ -98,7 +98,13 @@ the repository of the project or in another one:
   inputs.scala-cli-purifier.url = "github:nix-purifiers/scala-cli-purifier";
   inputs.nixpkgs.follows = "scala-cli-purifier/nixpkgs";
 
-  outputs = { self, nixpkgs, scala-cli-purifier, ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      scala-cli-purifier,
+      ...
+    }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -108,7 +114,8 @@ the repository of the project or in another one:
     in
     {
       packages.${system}.default =
-        (pkgs.scala-cli-purifier.buildScalaCliProject { src = self; }).packages.app;
+        (pkgs.scala-cli-purifier.buildScalaCliProject { src = self; })
+        .packages.app;
     };
 }
 ```
@@ -155,7 +162,8 @@ Lock with `--publish`, then publish from the project directory:
 
 ```zsh
 scala-cli-purifier publish https://maven.example.com/releases
-scala-cli-purifier publish --gpg-key 0xKEYID --bundle central-bundle.zip
+scala-cli-purifier publish --gpg-key 0xKEYID --bundle \
+  central-bundle.zip
 ```
 
 `publish` builds the `release` with Nix: the jar, sources, Scaladoc and
@@ -173,15 +181,15 @@ For an ad hoc build, the builder can also be evaluated directly from the
 project root. Replace the example package name with one from your project:
 
 ```zsh
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.app'
+nix build --impure --expr 'let
+  purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
+  pkgs = import purifier.inputs.nixpkgs {
+    system = builtins.currentSystem;
+    overlays = [ purifier.overlays.default ];
+  };
+in
+(pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; })
+.packages.app'
 ```
 
 This uses the purifier's pinned nixpkgs, matching the lock command above.
@@ -311,16 +319,17 @@ module and build it from its directory:
 
 ```zsh
 cd besom/core
-nix run github:nix-purifiers/scala-cli-purifier -- lock --name besom-core
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; }).packages.besom-core'
+nix run github:nix-purifiers/scala-cli-purifier -- lock --name \
+  besom-core
+nix build --impure --expr 'let
+  purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
+  pkgs = import purifier.inputs.nixpkgs {
+    system = builtins.currentSystem;
+    overlays = [ purifier.overlays.default ];
+  };
+in
+(pkgs.scala-cli-purifier.buildScalaCliProject { src = ./.; })
+.packages.besom-core'
 ```
 
 `result/share/java/besom-core.jar` is the jar of the module. To work on it
@@ -332,7 +341,8 @@ flake of your own. Lock the module into that flake's directory:
 
 ```zsh
 cd besom/core
-scala-cli-purifier lock --name besom-core --lockfile ~/besom-packaging/scala-cli-purifier.lock.json
+scala-cli-purifier lock --name besom-core --lockfile \
+  ~/besom-packaging/scala-cli-purifier.lock.json
 ```
 
 The flake in `~/besom-packaging` builds the module from besom's sources:
@@ -346,7 +356,13 @@ The flake in `~/besom-packaging` builds the module from besom's sources:
     flake = false;
   };
 
-  outputs = { nixpkgs, scala-cli-purifier, besom, ... }:
+  outputs =
+    {
+      nixpkgs,
+      scala-cli-purifier,
+      besom,
+      ...
+    }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
