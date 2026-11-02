@@ -11,6 +11,18 @@ snapshot = json.loads(subprocess.check_output(
     ['nix', 'flake', 'metadata', '--json', '--no-write-lock-file', 'path:' + str(root)], text=True))['path']
 with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as temporary:
     temporary = Path(temporary)
+    subprocess.run(['nix-store', '--add-root', str(temporary / 'source'), '--realise', snapshot], check=True)
+    expression = """let
+      f = builtins.getFlake ("path:" + builtins.getEnv "COMPOSITION_FLAKE");
+      p = f.inputs.nixpkgs.legacyPackages.${builtins.currentSystem};
+    in p.runCommand "composition-downstream-tools" {} ''
+      mkdir -p "$out/bin"
+      ln -s ${p.maven}/bin/mvn "$out/bin/mvn"
+      ln -s ${p.jdk21_headless.home} "$out/jdk"
+    '' """
+    tools = Path(subprocess.check_output(['nix', 'build', '--impure', '--print-out-paths',
+        '--out-link', str(temporary / 'tools'), '--expr', expression], text=True,
+        env=dict(os.environ, COMPOSITION_FLAKE=str(root))).strip())
     package = subprocess.check_output(
         ['nix', 'build', str(root) + '#default', '--print-out-paths',
          '--out-link', str(temporary / 'cli')], text=True).strip().splitlines()[-1]
@@ -37,4 +49,31 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
         run(cli,'prefetch')
         run(cli.parent/'scala-cli','run','.')
         run(cli,'publish',str(workspace/'published'))
+        repository = workspace / 'published'
+        pom = next((repository / 'io/github/nix-purifiers/example/greeting_3').glob('*/*.pom'))
+        group, artifact = 'io.github.nix-purifiers.example', 'greeting_3'
+        names = ['projectinput.Greeting'] if case == 'direct' else [
+            'org.apache.commons.lang3.StringUtils', 'org.apache.commons.text.WordUtils']
+        invoke = 'Class.forName("greeting.main").getMethod("main", String[].class).invoke(null, (Object)new String[0]);'
+        downstream = temporary / (case+'-downstream')
+        source = downstream / 'src/main/java/Downstream.java'
+        source.parent.mkdir(parents=True)
+        checks = '\n'.join('''String origin%d = Class.forName(%s).getProtectionDomain().getCodeSource().getLocation().toString();
+          if (!origin%d.contains("-nix-")) throw new AssertionError(origin%d);''' % (index, json.dumps(name), index, index)
+          for index, name in enumerate(names))
+        source.write_text('public final class Downstream { public static void main(String[] args) throws Exception {'
+                          + invoke + checks + 'System.out.println("ORDINARY MAVEN PASSED"); } }')
+        (downstream / 'pom.xml').write_text(f'''<project><modelVersion>4.0.0</modelVersion>
+          <groupId>example</groupId><artifactId>downstream</artifactId><version>1</version>
+          <properties><maven.compiler.release>21</maven.compiler.release></properties>
+          <repositories><repository><id>projected</id><url>{repository.as_uri()}</url></repository></repositories>
+          <dependencies><dependency><groupId>{group}</groupId><artifactId>{artifact}</artifactId>
+          <version>{pom.parent.name}</version></dependency></dependencies></project>''')
+        plain = dict(os.environ, JAVA_HOME=str(tools / 'jdk'))
+        subprocess.run([str(tools / 'bin/mvn'), '-B', '-Dmaven.repo.local='+str(temporary / 'ordinary-m2'),
+                        'package', 'dependency:build-classpath', '-Dmdep.outputFile=classpath'],
+                       cwd=downstream, env=plain, check=True)
+        subprocess.run([str(tools / 'jdk/bin/java'), '-cp', str(downstream / 'target/classes')+os.pathsep
+                        +(downstream / 'classpath').read_text().strip(), 'Downstream'],
+                       cwd=downstream, env=plain, check=True)
         print('SCALA CLI '+case.upper()+' NATIVE ROUNDTRIP PASSED', flush=True)
