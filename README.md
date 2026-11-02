@@ -372,15 +372,8 @@ before `scala-cli-purifier prefetch`.
 
 ## Credits
 
-The design comes from
-[sbt-purifier](https://github.com/nix-purifiers/sbt-purifier): a lock run
-with an empty cache, a lockfile of every downloaded file, a builder that
-realizes those files as the tool's cache, offline development, and
-publishing what Nix built. The locked files are fetched and laid out by
-[purifier](https://github.com/nix-purifiers/purifier), the library the
-nix-purifiers share. The purifier idea was inspired by nixcloud's
-[cargo (libnix)](https://github.com/nixcloud/cargo). The coursier cache
-code (`pkgs/cli/coursier_cache.py`) is shared with the Mill purifier.
+The purifier idea was inspired by nixcloud's
+[cargo (libnix)](https://github.com/nixcloud/cargo).
 
 ## License
 
