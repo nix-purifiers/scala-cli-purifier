@@ -84,7 +84,8 @@ the repository of the project or in another one:
 
 ```nix
 {
-  inputs.scala-cli-purifier.url = "github:nix-purifiers/scala-cli-purifier";
+  inputs.scala-cli-purifier.url =
+    "github:nix-purifiers/scala-cli-purifier";
   inputs.nixpkgs.follows = "scala-cli-purifier/nixpkgs";
 
   outputs =
@@ -98,13 +99,16 @@ the repository of the project or in another one:
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [ scala-cli-purifier.overlays.default ];
+        overlays = [
+          scala-cli-purifier.overlays.default
+        ];
       };
     in
     {
       packages.${system}.default =
-        (pkgs.scala-cli-purifier.buildScalaCliProject { src = self; })
-        .packages.app;
+        (pkgs.scala-cli-purifier.buildScalaCliProject {
+          src = self;
+        }).packages.app;
     };
 }
 ```
@@ -339,7 +343,8 @@ The flake in `~/besom-packaging` builds the module from besom's sources:
 
 ```nix
 {
-  inputs.scala-cli-purifier.url = "github:nix-purifiers/scala-cli-purifier";
+  inputs.scala-cli-purifier.url =
+    "github:nix-purifiers/scala-cli-purifier";
   inputs.nixpkgs.follows = "scala-cli-purifier/nixpkgs";
   inputs.besom = {
     url = "github:VirtusLab/besom/v0.5.2";
@@ -357,15 +362,19 @@ The flake in `~/besom-packaging` builds the module from besom's sources:
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [ scala-cli-purifier.overlays.default ];
+        overlays = [
+          scala-cli-purifier.overlays.default
+        ];
       };
-      core = pkgs.scala-cli-purifier.buildScalaCliProject {
+      core =
+        pkgs.scala-cli-purifier.buildScalaCliProject {
         src = "${besom}/core";
         lockFile = ./scala-cli-purifier.lock.json;
       };
     in
     {
-      packages.${system}.default = core.packages.besom-core;
+      packages.${system}.default =
+        core.packages.besom-core;
     };
 }
 ```
