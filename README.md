@@ -307,8 +307,9 @@ builds its `core` module with scala-cli. From a besom checkout, lock the
 module and build it from its directory:
 
 ```zsh
+nix shell 'github:nix-purifiers/scala-cli-purifier'
 cd besom/core
-nix run github:nix-purifiers/scala-cli-purifier -- lock --name \
+scala-cli-purifier lock --name \
   besom-core
 nix build --impure --expr 'let
   purifier = builtins.getFlake "github:nix-purifiers/scala-cli-purifier";
