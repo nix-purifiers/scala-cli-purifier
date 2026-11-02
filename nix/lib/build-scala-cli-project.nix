@@ -397,7 +397,7 @@ let
       // lib.optionalAttrs (lock.publish or false) {
         projections = purifier.jvmProjections {
           repository = release;
-          runtimeRepository = if projectDependencies == [ ] then null else "${release}/nix-support/runtime";
+          runtimeRepository = "${release}/nix-support/runtime";
           dependencies = projectDependencies;
           inherit runCommand python3;
           name = "scala-cli-jvm-publications";
@@ -434,10 +434,8 @@ let
       extraInputs = [ strip-nondeterminism ];
       run = ''
         runScalaCli ${scalaCli "publish"} --publish-repository "file://$TMPDIR/release" ${lib.escapeShellArgs lock.arguments} </dev/null
-        ${lib.optionalString (projectDependencies != [ ]) ''
-          ${scalaCli "compile"} --workspace "$TMPDIR/runtime-workspace" --print-class-path \
+                  ${scalaCli "compile"} --workspace "$TMPDIR/runtime-workspace" --print-class-path \
             ${lib.escapeShellArgs lock.arguments} </dev/null > "$TMPDIR/runtime-classpath.txt"
-        ''}
       '';
       install = ''
         cp -r "$TMPDIR/release" $out
@@ -462,11 +460,9 @@ let
             exit 1
           fi
         done
-        ${lib.optionalString (projectDependencies != [ ]) ''
-          ${python3}/bin/python ${./export-runtime.py} ${purifier.projectInputsTool} \
+                  ${python3}/bin/python ${./export-runtime.py} ${purifier.projectInputsTool} \
             "$TMPDIR/runtime-classpath.txt" "$TMPDIR/runtime-workspace" "$TMPDIR/coursier-cache" \
             ${provided.maven.catalog} "$out/nix-support/runtime"
-        ''}
       '';
       passthru = finalAttrs: {
         artifacts = builtins.mapAttrs (_: rel: "${finalAttrs.finalPackage}/${rel}") releaseFiles;
@@ -482,7 +478,7 @@ assert
   inherit tests release;
   projections = purifier.jvmProjections {
     repository = release;
-    runtimeRepository = if projectDependencies == [ ] then null else "${release}/nix-support/runtime";
+    runtimeRepository = "${release}/nix-support/runtime";
     dependencies = projectDependencies;
     inherit runCommand python3;
     name = "scala-cli-jvm-publications";

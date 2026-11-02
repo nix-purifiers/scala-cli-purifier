@@ -257,6 +257,11 @@ let
     pkgs.runCommand name { } "touch $out";
 in
 {
+  # A producer needs a complete runtime view even with no Nix project inputs.
+  standalone-projection = pkgs.runCommand "scala-cli-standalone-projection" { } ''
+    test -n "$(find ${library.projections.maven}/org/scala-lang/scala3-library_3 -name '*.jar')"
+    touch $out
+  '';
   composition = import ./composition.nix {
     inherit pkgs build;
     purifier = withOverlay.lib.purifier;
