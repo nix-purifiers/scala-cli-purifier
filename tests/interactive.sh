@@ -111,9 +111,11 @@ fi
 cd "$root/tests/fixtures/library"
 repo="$home/repository"
 "$cli" publish "$repo"
-version=io/github/nix-purifiers/example/greeting_3/1.0.0
-for f in greeting_3-1.0.0.jar greeting_3-1.0.0.pom greeting_3-1.0.0-sources.jar greeting_3-1.0.0-javadoc.jar; do
-  test -f "$repo/$version/$f" || { echo "publish did not write $f" >&2; exit 1; }
+version=$(find "$repo/io/github/nix-purifiers/example/greeting_3" -mindepth 1 -maxdepth 1 -type d -name '1.0.0-nix-*')
+[ -n "$version" ] || { echo "publish wrote no immutable Nix version" >&2; exit 1; }
+revision=$(basename "$version")
+for suffix in .jar .pom -sources.jar -javadoc.jar; do
+  test -f "$version/greeting_3-$revision$suffix" || { echo "publish did not write $suffix" >&2; exit 1; }
 done
 echo "publish wrote $(find "$repo" -type f | wc -l) files to a repository directory"
 "$cli" publish --bundle "$home/bundle.zip"

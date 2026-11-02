@@ -61,6 +61,8 @@ from pathlib import Path, PurePosixPath
 # The wrapper runs this file with `python3 -I`, which leaves the file's own
 # directory off sys.path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+if os.environ.get("SCALA_CLI_PURIFIER_PURIFIER"):
+    sys.path.insert(0, str(Path(os.environ["SCALA_CLI_PURIFIER_PURIFIER"]) / "tools"))
 import bsp
 import coursier_cache
 import local_repositories
@@ -408,7 +410,7 @@ def stage_local_repositories(locals_, sources, home, other_root):
 
 
 def check_offline(
-    root, java_home, arguments, platform, test, publish, ide, source_cache, mirrors, paths, work, locals_, sources
+    root, java_home, arguments, platform, test, publish, ide, source_cache, mirrors, paths, work, locals_, sources, views=()
 ):
     """Build offline from `paths` of `source_cache`, each at its canonical
     cache path, and the recorded files of the local repositories alone, in
@@ -426,6 +428,9 @@ def check_offline(
     user_home = work / "user-home"
     user_home.mkdir(parents=True, exist_ok=True)
     extra = stage_local_repositories(locals_, sources, user_home, work / "local-repositories")
+    if views:
+        import project_inputs
+        project_inputs.stage_coursier(cache, views, root)
     unlocked = []
     mirror_options, server = start_mirror(cache, work / "mirror", aliases, java_home)
     offline_mirror.Handler.log = staticmethod(lambda message: unlocked.append(message))
@@ -551,12 +556,44 @@ def parse_lock_args(args):
     return options, arguments or ["."]
 
 
+def take_project_inputs(args):
+    references, remaining = None, []
+    arguments = iter(args)
+    for argument in arguments:
+        if argument == "--":
+            remaining += [argument, *arguments]
+            break
+        if argument == "--input":
+            reference = next(arguments, None)
+            if reference is None:
+                raise PurifierError("--input needs a flake package")
+            if references is None:
+                references = []
+            references.append(reference)
+        else:
+            remaining.append(argument)
+    return references, remaining
+
+
 def lock(args, update=None):
     """Writes the lockfile. With `update` (a list of module names, empty for
     every module), the lock run downloads the version listings of those
     modules again instead of keeping the ones the current lockfile holds."""
     lockfile_path, args = take_lockfile(args)
+    input_refs, args = take_project_inputs(args)
     options, arguments = parse_lock_args(args)
+    previous_inputs = []
+    if lockfile_path.is_file():
+        try:
+            previous_inputs = lockfile.read(lockfile_path).get("projectInputs", [])
+        except lockfile.LockfileError:
+            pass
+    if input_refs is None:
+        input_refs = [entry["reference"] for entry in previous_inputs]
+    inputs = []
+    if input_refs:
+        import project_inputs
+        inputs = project_inputs.pin(input_refs, previous_inputs, refresh=update == [])
     test, publish, ide = options["test"], options["publish"], options["ide"]
     root = Path.cwd()
     name = options["name"] or root.name
@@ -573,6 +610,10 @@ def lock(args, update=None):
         mirrors = central_mirrors()
         configure_mirrors(environment, mirrors)
         seed_listings(cache, kept_listings(lockfile_path, update), mirrors)
+        views, provided = [], set()
+        if inputs:
+            views = project_inputs.maven_views(inputs, tmp / "project-inputs")
+            provided = project_inputs.stage_coursier(cache, views, root)
         user_home = home_override()
         platform, resolvers = detect_platform(root, run_dir, java_home, arguments, environment, user_home)
         print(f"scala-cli-purifier: building for {platform} with an empty coursier cache", file=sys.stderr)
@@ -595,12 +636,12 @@ def lock(args, update=None):
         locals_ = local_repositories.record(found, class_paths)
         sources = {repo["name"]: repo["root"] for repo in found}
 
-        files = coursier_cache.downloaded_files(cache)
+        files = [path for path in coursier_cache.downloaded_files(cache) if path not in provided]
         fetched = [p for p in files if not coursier_cache.is_version_listing(p)]
         listings = [p for p in files if coursier_cache.is_version_listing(p)]
         print("scala-cli-purifier: checking the build offline from the recorded files", file=sys.stderr)
         check = (root, java_home, arguments, platform, test, publish, ide, cache, mirrors)
-        output = check_offline(*check, fetched, tmp / "check", locals_, sources)
+        output = check_offline(*check, fetched, tmp / "check", locals_, sources, views=views)
         inlined = []
         if output is not None and listings:
             # The project needs version listings, for a version range or a
@@ -608,7 +649,7 @@ def lock(args, update=None):
             # version is published, so the lock keeps the listings this run
             # read as inline entries, and the offline build resolves to the
             # versions this run picked.
-            output = check_offline(*check, files, tmp / "check-listings", locals_, sources)
+            output = check_offline(*check, files, tmp / "check-listings", locals_, sources, views=views)
             inlined = listings
             print(
                 "scala-cli-purifier: the offline build needs version listings; the lockfile holds them inline:\n"
@@ -648,6 +689,8 @@ def lock(args, update=None):
         "localRepositories": locals_,
         "artifacts": artifacts,
     }
+    if inputs:
+        data["projectInputs"] = inputs
     data["checksum"] = lockfile.checksum(data)
     lockfile_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     print(f"scala-cli-purifier: wrote {lockfile_path} ({len(artifacts)} files)", file=sys.stderr)
@@ -753,6 +796,11 @@ def prefetch(args):
         check=True,
         stdout=subprocess.DEVNULL,
     )
+    if locked.get("projectInputs"):
+        import project_inputs
+        views = project_inputs.maven_views(locked["projectInputs"], state / "project-inputs")
+        (state / "project-inputs.json").write_text(json.dumps(
+            [{key: str(value) for key, value in view.items()} for view in views]))
     (state / "prefetched").write_text(locked["checksum"] + "\n")
     print(
         f"scala-cli-purifier: prefetched {len(locked['artifacts'])} files into {state / 'downloads'};"
@@ -819,6 +867,10 @@ def prefetched_cache(lockfile_path, locked):
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 destination.symlink_to(link.resolve())
         cache_stamp.write_text(stamp.read_text())
+    if locked.get("projectInputs"):
+        import project_inputs
+        views = json.loads((state / "project-inputs.json").read_text())
+        project_inputs.stage_coursier(cache, views, Path.cwd(), lockfile_path)
     return cache
 
 

@@ -24,4 +24,4 @@ in
 (buildScalaCliProject {
   src = /. + src;
   lockFile = /. + lockFile;
-}).release
+}).projections.maven

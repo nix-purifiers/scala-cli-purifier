@@ -257,6 +257,13 @@ let
     pkgs.runCommand name { } "touch $out";
 in
 {
+  composition = import ./composition.nix {
+    inherit pkgs build;
+    purifier = withOverlay.lib.purifier;
+  };
+
+  jvm-projection = library.projections.maven;
+
   inherit cli;
 
   hello-runs = runs "hello-runs" hello.packages.hello [ ''{"hello":"Nix World"}'' ];

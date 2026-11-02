@@ -71,6 +71,11 @@
   # nixpkgs takes, so a replacement can send credentials or use a company
   # mirror.
   fetchers ? { },
+  # Nix-built JVM inputs, supplied independently of artifact download locks.
+  projectDependencies ? purifier.lockedProjectInputs {
+    inputs = (builtins.fromJSON (builtins.readFile lockFile)).projectInputs or [ ];
+    system = stdenvNoCC.hostPlatform.system;
+  },
   # The lockfile; the default is the one `scala-cli-purifier lock` writes at
   # the project root.
   lockFile ? src + "/scala-cli-purifier.lock.json",
@@ -148,6 +153,13 @@ let
     }
     // fetchers
   );
+
+  provided = purifier.jvmProjections {
+    repository = null;
+    dependencies = projectDependencies;
+    inherit runCommand python3;
+    name = "scala-cli-provided-dependencies";
+  };
 
   # The options of every scala-cli invocation; `scala-cli-purifier lock`
   # runs scala-cli the same way (pkgs/cli/scala_cli_purifier.py,
@@ -264,6 +276,11 @@ let
       done < <(find -L "$COURSIER_CACHE" -path '*/org/scala-native/tools_*/*/tools_*.jar' \
         ! -name '*-sources.jar' ! -name '*-javadoc.jar' -print0)
     ''}
+    ${lib.optionalString (projectDependencies != [ ]) ''
+      ${python3}/bin/python ${purifier.coursierInputsTool}/coursier_inputs.py \
+        --cache "$COURSIER_CACHE" --repository ${provided.maven} \
+        --catalog ${provided.maven.catalog} --sources "$PWD" --lock ${lockFile}
+    ''}
     mkdir -p "$TMPDIR/user-home"
     ${python3.interpreter} -I ${mirrorSource}/local_repositories.py stage "$localSpecPath" "$TMPDIR"
     PATH="${jdk'}/bin:$PATH" ${python3.interpreter} -I ${mirrorSource}/offline_mirror.py \
@@ -372,9 +389,18 @@ let
       runScalaCli ${scalaCli "package"} ${packageOptions} -f ${lib.escapeShellArgs lock.arguments} </dev/null
     '';
     install = installProgram;
-    passthru = finalAttrs: {
-      artifacts = builtins.mapAttrs (_: rel: "${finalAttrs.finalPackage}/${rel}") programFiles;
-    };
+    passthru =
+      finalAttrs:
+      {
+        artifacts = builtins.mapAttrs (_: rel: "${finalAttrs.finalPackage}/${rel}") programFiles;
+      }
+      // lib.optionalAttrs (lock.publish or false) {
+        projections = purifier.jvmProjections {
+          repository = release;
+          inherit runCommand python3;
+          name = "scala-cli-jvm-publications";
+        };
+      };
     meta = {
       description = "${name}, built by scala-cli-purifier";
       mainProgram = name;
@@ -413,6 +439,12 @@ let
         # Jars hold the time each entry was written; normalizing them makes
         # a rebuild give the same bytes, and the checksums are written again
         # for the normalized files.
+        ${lib.optionalString (projectDependencies != [ ]) ''
+          while IFS= read -r -d "" pom; do
+            ${python3}/bin/python ${purifier.jvmRepositoryTool} \
+              --rewrite-pom "$pom" --catalog ${provided.maven.catalog}
+          done < <(find $out -name '*.pom' -print0)
+        ''}
         find $out -name '*.jar' -print0 | xargs -0 -r strip-nondeterminism --type jar
         find $out -type f ! -name '*.md5' ! -name '*.sha1' | while read -r file; do
           if [ -f "$file.sha1" ]; then sha1sum "$file" | cut -d' ' -f1 | tr -d '\n' > "$file.sha1"; fi
@@ -437,6 +469,12 @@ assert
 {
   packages.${name} = package;
   inherit tests release;
+  projections = purifier.jvmProjections {
+    repository = release;
+    dependencies = projectDependencies;
+    inherit runCommand python3;
+    name = "scala-cli-jvm-publications";
+  };
   fetches = checked.entries;
   artifacts = package.artifacts // lib.optionalAttrs (lock.publish or false) release.artifacts;
 }
