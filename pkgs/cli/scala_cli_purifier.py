@@ -345,7 +345,7 @@ def detect_platform(root, work, java_home, arguments, environment, user_home):
     return platform, resolvers
 
 
-def class_path(root, work, java_home, arguments, platform, test_scope, environment, user_home):
+def class_path(root, work, java_home, arguments, platform, test_scope, environment, user_home, quiet=False):
     """The class path of the project's main scope, or with `test_scope` of
     its test scope, as `scala-cli compile --print-class-path` prints it."""
     command = [
@@ -363,8 +363,10 @@ def class_path(root, work, java_home, arguments, platform, test_scope, environme
         command, cwd=root, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False
     )
     if result.returncode != 0:
-        sys.stderr.write(result.stdout + result.stderr)
-        raise PurifierError("`scala-cli compile --print-class-path` failed")
+        output = result.stdout + result.stderr
+        if not quiet:
+            sys.stderr.write(output)
+        raise PurifierError("`scala-cli compile --print-class-path` failed" + ("\n" + output if quiet else ""))
     lines = result.stdout.strip().splitlines()
     return lines[-1].split(os.pathsep) if lines else []
 
@@ -616,6 +618,26 @@ def lock(args, update=None):
             provided = project_inputs.stage_coursier(cache, views, root)
         user_home = home_override()
         platform, resolvers = detect_platform(root, run_dir, java_home, arguments, environment, user_home)
+        if views:
+            # The first native resolution discovers transitive constraints in
+            # POMs. Restage supplied artifacts after that discovery, even if a
+            # nonexistent supplied version made the first resolution fail.
+            for test_scope in ([False, True] if test else [False]):
+                while True:
+                    failure = None
+                    try:
+                        class_path(root, run_dir, java_home, arguments, platform, test_scope,
+                                   environment, user_home, quiet=True)
+                    except PurifierError as error:
+                        failure = error
+                    aliases = project_inputs.stage_coursier(cache, views, root)
+                    added = aliases - provided
+                    provided.update(aliases)
+                    if added:
+                        continue
+                    if failure is not None:
+                        raise failure
+                    break
         print(f"scala-cli-purifier: building for {platform} with an empty coursier cache", file=sys.stderr)
         commands = scala_cli_commands(run_dir, java_home, arguments, platform, test, publish, user_home=user_home)
         if run_all(commands, root, environment, quiet=False) is not None:
