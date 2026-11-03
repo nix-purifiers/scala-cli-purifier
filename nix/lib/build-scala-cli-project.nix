@@ -307,6 +307,12 @@ let
         exit "$status"
       fi
     }
+  ''
+  # On macOS scala-cli ignores the XDG directories and keeps its own under the
+  # Library of the home the password database names, which for a build user
+  # is /var/empty; SCALA_CLI_HOME moves them.
+  + lib.optionalString stdenvNoCC.buildPlatform.isDarwin ''
+    export SCALA_CLI_HOME="$HOME/.scala-cli"
   '';
   stopMirror = ''kill "$mirrorPid" 2>/dev/null || true'';
 

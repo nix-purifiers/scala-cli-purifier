@@ -18,7 +18,7 @@ import scala_cli_purifier as scp
 class EnvironmentTests(unittest.TestCase):
     def test_bsp_socket_fits_in_a_github_runner_work_directory(self):
         work = Path("/home/runner/work/_temp/scala-cli-purifier-85i0hn5y/check-listings")
-        with mock.patch.object(Path, "mkdir"):
+        with mock.patch.object(Path, "mkdir"), mock.patch.object(scp.sys, "platform", "linux"):
             env = scp.isolated_env(work, work / "coursier", offline=True)
         socket = Path(env["XDG_CACHE_HOME"]) / "scalacli/bsp-sockets/proc-2147483647"
         self.assertLessEqual(len(os.fsencode(socket)), 107)

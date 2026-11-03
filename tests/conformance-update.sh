@@ -15,7 +15,10 @@
 set -euo pipefail
 root=$PWD
 cli=$(nix build --no-link --print-out-paths '.#cli')/bin/scala-cli-purifier
+# The physical path: Nix refuses a path with a symlink in it, such as
+# macOS's /var, which mktemp's directory is under.
 work=$(mktemp -d)
+work=$(cd "$work" && pwd -P)
 trap 'rm -rf "$work"' EXIT
 export SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR=${SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR-https://maven-central.storage-download.googleapis.com/maven2}
 

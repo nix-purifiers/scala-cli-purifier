@@ -104,8 +104,19 @@ def isolated_env(work, cache, offline):
         data / "scalacli/bloop/daemon/socket",
         cache_home / "scalacli/bsp-sockets/proc-2147483647",
     )
+    limit = 107
+    # On macOS scala-cli and coursier ignore the XDG directories and keep
+    # theirs under ~/Library; SCALA_CLI_HOME and COURSIER_CONFIG_DIR keep
+    # them in the work directory. macOS allows a socket path 103 bytes.
+    scala_cli_home = work / "s"
+    if sys.platform == "darwin":
+        sockets = (
+            scala_cli_home / "data-local/bloop/daemon/socket",
+            scala_cli_home / "data-local/bsp-sockets/proc-2147483647",
+        )
+        limit = 103
     for socket in sockets:
-        if len(os.fsencode(socket)) > 107:
+        if len(os.fsencode(socket)) > limit:
             raise PurifierError(
                 f"the build server's socket would be {socket}, which is longer than a Unix domain socket"
                 " path may be; set TMPDIR to a shorter directory"
@@ -121,6 +132,8 @@ def isolated_env(work, cache, offline):
         COURSIER_ARCHIVE_CACHE=str(work / "archive-cache"),
     )
     e.pop("SCALA_CLI_HOME", None)
+    if sys.platform == "darwin":
+        e.update(SCALA_CLI_HOME=str(scala_cli_home), COURSIER_CONFIG_DIR=str(home / ".config/coursier"))
     if offline:
         e["COURSIER_MODE"] = "offline"
         for k in list(e):
@@ -603,7 +616,10 @@ def lock(args, update=None):
         raise PurifierError(f"'{name}' is not a usable package name; pass --name")
     java_home = default_java_home()
 
-    with tempfile.TemporaryDirectory(prefix="scala-cli-purifier-") as tmp:
+    # macOS's per-user TMPDIR is too long for the build server's sockets
+    # under the lock run's directory; /tmp is short enough.
+    work_root = "/tmp" if sys.platform == "darwin" else None
+    with tempfile.TemporaryDirectory(prefix="scala-cli-purifier-", dir=work_root) as tmp:
         tmp = Path(tmp)
         run_dir = tmp / "lock-run"
         cache = run_dir / "cache"

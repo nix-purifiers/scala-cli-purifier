@@ -30,12 +30,14 @@ class RootsTests(unittest.TestCase):
             "file:///srv/shared/repository",
         ]
         found = lr.roots(resolvers, home, internal)
+        # The roots are resolved: on macOS /home/me is
+        # /System/Volumes/Data/home/me.
         self.assertEqual(
-            [(r["name"], r["layout"], str(r["root"]), r["pattern"]) for r in found],
+            [(r["name"], r["layout"], r["root"], r["pattern"]) for r in found],
             [
-                ("m2Local", "maven", "/home/me/.m2/repository", ""),
-                ("ivy2Local", "ivy", "/home/me/.ivy2/local", IVY_PATTERN),
-                ("repository", "maven", "/srv/shared/repository", ""),
+                ("m2Local", "maven", home.resolve() / ".m2/repository", ""),
+                ("ivy2Local", "ivy", home.resolve() / ".ivy2/local", IVY_PATTERN),
+                ("repository", "maven", Path("/srv/shared/repository").resolve(), ""),
             ],
         )
 

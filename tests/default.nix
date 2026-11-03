@@ -428,6 +428,17 @@ in
       ''
         export HOME=$TMPDIR/home
         mkdir -p $HOME
+        ${lib.optionalString pkgs.stdenv.buildPlatform.isDarwin ''
+          # On macOS the build user's home in the password database is
+          # /var/empty, which nothing can write, and scala-cli and the Bloop
+          # server take it as user.home. scala-cli keeps its directories in
+          # SCALA_CLI_HOME instead; the wrapper passes
+          # SCALA_CLI_PURIFIER_USER_HOME to scala-cli as user.home (with
+          # /var/empty it builds the project as a virtual one elsewhere, and
+          # setup-ide fails); Bloop, a JVM, takes it from JAVA_TOOL_OPTIONS.
+          export SCALA_CLI_HOME=$HOME/.scala-cli SCALA_CLI_PURIFIER_USER_HOME=$HOME
+          export JAVA_TOOL_OPTIONS=-Duser.home=$HOME
+        ''}
         cp -r ${./fixtures/hello} project
         chmod -R u+w project
         cd project
@@ -492,9 +503,12 @@ in
       (withOverlay.scala-cli-purifier.overrideScope (final: prev: { scala-cli = otherScalaCli; }))
       .buildScalaCliProject;
 
-  # The jar of besom core holds its classes.
+  # The jar of besom core holds its classes. The listing goes to a file
+  # first: grep -q stops at the first match, and unzip, still writing the
+  # listing of the whole assembly, would fail with SIGPIPE.
   example-besom-core = pkgs.runCommand "example-besom-core" { nativeBuildInputs = [ pkgs.unzip ]; } ''
-    unzip -l ${besomCore.packages.besom-core}/share/java/besom-core.jar | grep -q 'besom/internal/Context.class'
+    unzip -l ${besomCore.packages.besom-core}/share/java/besom-core.jar > listing
+    grep -q 'besom/internal/Context.class' listing
     mkdir -p $out
     ln -s ${besomCore.packages.besom-core} $out/package
   '';
