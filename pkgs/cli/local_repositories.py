@@ -71,7 +71,9 @@ def roots(resolvers, home, internal):
     `layout`, `root` and `pattern`. ivy2Local and m2Local of `home` get
     those names; any other repository is named for its directory. A
     resolver under `internal`, scala-cli's own repository of its tools, is
-    left out."""
+    left out. Both are resolved, as the resolvers' roots are: on macOS
+    /tmp and /var are links into /private."""
+    home, internal = Path(home).resolve(), Path(internal).resolve()
     found = []
     names = set()
     for resolver in resolvers:
