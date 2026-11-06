@@ -64,6 +64,12 @@ The commands run scala-cli on the JDK 21 of the package, which
 so a relock records the same Java version on every machine. The Nix build
 uses the headless JDK of that major version from the package set.
 
+The builder recognizes legacy Java version notation in existing locks:
+`1.8.0_504` selects major `8`, while `21.0.12.1` selects `21`. Locks keep
+their full recorded version and are not rewritten. The package set must still
+provide that JDK, or the caller must pass `jdk`. This parsing does not change
+the packaged capture JVM or establish legacy Scala CLI/JVM compatibility.
+
 ## Dependencies from another purified project
 
 Pass a producer's flake package to `lock`:
