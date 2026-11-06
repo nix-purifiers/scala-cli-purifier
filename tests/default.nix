@@ -257,6 +257,19 @@ let
     pkgs.runCommand name { } "touch $out";
 in
 {
+  java-major =
+    pkgs.runCommand "java-major"
+      {
+        nativeBuildInputs = [
+          pkgs.nix
+          pkgs.python3
+        ];
+      }
+      ''
+        python3 -B ${./java-major.py} ${../nix/lib/build-scala-cli-project.nix} ${pkgs.path}/lib
+        touch $out
+      '';
+
   # A producer needs a complete runtime view even with no Nix project inputs.
   standalone-projection = pkgs.runCommand "scala-cli-standalone-projection" { } ''
     test -n "$(find ${library.projections.maven}/org/scala-lang/scala3-library_3 -name '*.jar')"
