@@ -133,16 +133,7 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   mkdir -p "$HOME"
   export SCALA_CLI_HOME=$HOME/.scala-cli SCALA_CLI_PURIFIER_USER_HOME=$HOME
   export JAVA_TOOL_OPTIONS=-Duser.home=$HOME
-  python3 - <<'PY'
-  import socket
-  try:
-      connection = socket.create_connection(("1.1.1.1", 443), timeout=2)
-  except OSError:
-      print("external network unavailable in runtime sandbox")
-  else:
-      connection.close()
-      raise SystemExit("runtime sandbox unexpectedly permits external network")
-  PY
+  python3 -B ${{f.outPath + "/tests/local-networking.py"}}
   cp -R ${{project}} project
   chmod -R u+w project
   cd project

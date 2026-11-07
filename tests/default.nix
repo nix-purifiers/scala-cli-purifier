@@ -456,6 +456,7 @@ in
       ''
         export HOME=$TMPDIR/home
         mkdir -p $HOME
+        python3 -B ${./local-networking.py}
         ${lib.optionalString pkgs.stdenv.buildPlatform.isDarwin ''
           # On macOS the build user's home in the password database is
           # /var/empty, which nothing can write, and scala-cli and the Bloop
