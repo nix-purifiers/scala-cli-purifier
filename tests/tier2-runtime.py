@@ -26,7 +26,7 @@ def save():
     (results / "report.json").write_text(json.dumps(report, indent=2) + "\n")
 
 
-def run(name, args, cwd=root, env=None):
+def run(name, args, cwd=root, env=None, stdout_only=False):
     command = [str(arg) for arg in args]
     if command[:2] == ["nix", "build"]:
         command += ["--option", "max-jobs", "2", "--option", "cores", "2", "--option", "eval-cache", "false"]
@@ -36,12 +36,15 @@ def run(name, args, cwd=root, env=None):
     save()
     with (results / entry["log"]).open("w") as log:
         process = subprocess.run(command, cwd=cwd, env=env, text=True,
-                                 stdout=log, stderr=subprocess.STDOUT)
+                                 stdout=subprocess.PIPE if stdout_only else log,
+                                 stderr=log if stdout_only else subprocess.STDOUT)
+        if stdout_only:
+            log.write(process.stdout)
     entry.update(returncode=process.returncode, finished=time.time())
     save()
     if process.returncode:
         raise RuntimeError(f"{name} failed: see {results / entry['log']}")
-    return (results / entry["log"]).read_text()
+    return process.stdout if stdout_only else (results / entry["log"]).read_text()
 
 
 def output(*args):
@@ -55,7 +58,7 @@ if report["dirty"]:
     raise RuntimeError("commit the reviewed source before capturing runtime evidence")
 report["sourceReference"] = f"git+file://{root}?rev={report['revision']}"
 archived = json.loads(run("archive-source", ["nix", "flake", "archive", "--json", "--no-update-lock-file",
-                                           report["sourceReference"]]))
+                                           report["sourceReference"]], stdout_only=True))
 snapshot = archived["path"]
 if not Path(snapshot).is_dir() or Path(snapshot).resolve() != Path(snapshot):
     raise RuntimeError("archived source must be a materialized canonical directory")
