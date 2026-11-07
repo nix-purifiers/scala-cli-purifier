@@ -62,7 +62,7 @@ if actual_sandbox != "true":
 report["sandbox"] = actual_sandbox
 if report["dirty"]:
     raise RuntimeError("commit the reviewed source before capturing runtime evidence")
-report["sourceReference"] = f"git+file://{root}?rev={report['revision']}"
+report["sourceReference"] = f"git+file://{root}?ref=HEAD&rev={report['revision']}&shallow=1"
 archived = json.loads(run("archive-source", ["nix", "flake", "archive", "--json", "--no-update-lock-file",
                                            report["sourceReference"]], stdout_only=True))
 snapshot = archived["path"]
