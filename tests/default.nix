@@ -80,6 +80,15 @@ let
     '';
   });
 
+  # Separate ordinary-argv JVM transport control; no SDK scope wiring.
+  urlTransportSdk = pkgs.callPackage ../pkgs/jvm-sdk { };
+  urlTransport = (build.override { scala-cli = urlTransportSdk; }) { src = ./fixtures/url; };
+  urlTransportPackage = urlTransport.packages.url.overrideAttrs (old: {
+    preBuild = (old.preBuild or "") + ''
+      ${pkgs.python3.interpreter} -B ${./local-networking.py}
+    '';
+  });
+
   # Dependencies from ivy2Local and m2Local, which the build is given as
   # directories; the lock was made with those of fixtures/local-home.
   local = build {
@@ -358,6 +367,15 @@ in
   url-runs = runs "url-runs" url.packages.url [ "hiccup from a URL: true" ];
   url-ipv4-diagnostic = runs "url-ipv4-diagnostic" urlIpv4Package [ "hiccup from a URL: true" ];
   url-jvm-diagnostic = runs "url-jvm-diagnostic" urlJvmPackage [ "hiccup from a URL: true" ];
+  url-jvm-transport-diagnostic = runs "url-jvm-transport-diagnostic" urlTransportPackage [
+    "hiccup from a URL: true"
+  ];
+  jvm-sdk-transport =
+    pkgs.runCommand "jvm-sdk-transport-tests" { nativeBuildInputs = [ pkgs.python3 ]; }
+      ''
+        python3 -B ${./test-jvm-sdk-transport.py} --sdk ${urlTransportSdk} -v
+        touch "$out"
+      '';
   local-runs = runs "local-runs" local.packages.local [
     "FROM IVY2LOCAL!"
     "from m2local..."

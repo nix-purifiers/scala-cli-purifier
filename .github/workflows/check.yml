@@ -42,6 +42,8 @@ jobs:
           git rev-parse HEAD
           nix build '.#checks.aarch64-darwin.url-ipv4-diagnostic' \
             '.#checks.aarch64-darwin.url-jvm-diagnostic' \
+            '.#checks.aarch64-darwin.url-jvm-transport-diagnostic' \
+            '.#checks.aarch64-darwin.jvm-sdk-transport' \
             --keep-going --no-link --print-build-logs --option sandbox true \
             --option max-jobs 2 --option cores 2 --option eval-cache false
 
