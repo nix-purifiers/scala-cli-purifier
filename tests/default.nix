@@ -41,6 +41,24 @@ let
   # a HEAD request that the offline mirror answers in the sandbox.
   url = build { src = ./fixtures/url; };
 
+  # Diagnostic only: preserve url-runs as the unmodified baseline. The
+  # leading -D is consumed by ScalaCli.setSystemProps before resolution;
+  # this does not add a project JVM option or change the locked sources.
+  urlIpv4Cli =
+    (pkgs.writeShellScriptBin "scala-cli" ''
+      exec ${pkgs.python3.interpreter} -B ${./url-cli-probe.py} \
+        ${lib.getExe' pkgs.scala-cli "scala-cli"} "$@"
+    '')
+    // {
+      inherit (pkgs.scala-cli) version;
+    };
+  urlIpv4 = (build.override { scala-cli = urlIpv4Cli; }) { src = ./fixtures/url; };
+  urlIpv4Package = urlIpv4.packages.url.overrideAttrs (old: {
+    preBuild = (old.preBuild or "") + ''
+      ${pkgs.python3.interpreter} -B ${./local-networking.py}
+    '';
+  });
+
   # Dependencies from ivy2Local and m2Local, which the build is given as
   # directories; the lock was made with those of fixtures/local-home.
   local = build {
@@ -317,6 +335,7 @@ in
     "sourcecode from a version range: 1 + 1"
   ];
   url-runs = runs "url-runs" url.packages.url [ "hiccup from a URL: true" ];
+  url-ipv4-diagnostic = runs "url-ipv4-diagnostic" urlIpv4Package [ "hiccup from a URL: true" ];
   local-runs = runs "local-runs" local.packages.local [
     "FROM IVY2LOCAL!"
     "from m2local..."

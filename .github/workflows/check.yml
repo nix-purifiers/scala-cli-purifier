@@ -30,11 +30,19 @@ jobs:
           fetch-depth: 0
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
       - name: Check the flake
+        id: flake
         run: |
           scala_sandbox=$(nix config show sandbox --option sandbox true)
           echo "Nix sandbox=$scala_sandbox"
           test "$scala_sandbox" = true
           nix flake check --print-build-logs --keep-going --option sandbox true
+      - name: Diagnose the Darwin URL connection after a failing full check
+        if: failure() && runner.os == 'macOS' && steps.flake.outcome == 'failure'
+        run: |
+          git rev-parse HEAD
+          nix build '.#checks.aarch64-darwin.url-ipv4-diagnostic' \
+            --no-link --print-build-logs --option sandbox true \
+            --option max-jobs 2 --option cores 2 --option eval-cache false
 
   # Relocking every fixture reproduces its lockfile byte for byte.
   conformance-relock:
