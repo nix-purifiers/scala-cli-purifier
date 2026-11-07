@@ -290,7 +290,7 @@ in
     pkgs.runCommand "scala-cli-local-networking"
       {
         nativeBuildInputs = [ pkgs.python3 ];
-        __darwinAllowLocalNetworking = true;
+        __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
       }
       ''
         python3 -B ${./local-networking.py} > result
@@ -447,7 +447,7 @@ in
   conformance-offline =
     pkgs.runCommand "conformance-offline"
       {
-        __darwinAllowLocalNetworking = true;
+        __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
         nativeBuildInputs = [
           cli
           pkgs.python3

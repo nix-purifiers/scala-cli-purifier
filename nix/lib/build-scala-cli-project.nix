@@ -334,7 +334,7 @@ let
       # The locked HTTP mirror listens only on 127.0.0.1. Darwin's sandbox
       # requires this permission for bind/listen; external outbound traffic
       # remains denied by the Nix sandbox profile.
-      __darwinAllowLocalNetworking = true;
+      __darwinAllowLocalNetworking = stdenvNoCC.buildPlatform.isDarwin;
       nativeBuildInputs = [
         scala-cli
         openssl
