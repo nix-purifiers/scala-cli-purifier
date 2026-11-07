@@ -65,18 +65,21 @@ fi
 # Upstream defines project-scoped publishTo settings. Override each selected
 # project and verify the effective values before invoking any publish task.
 publish_destination="Some(Resolver.file(\"derived-sdk\", file(\"$build_root/output-maven\"))(Resolver.mavenStylePatterns))"
+offline_resolvers="Seq(Resolver.file(\"derived-sdk\", file(\"$build_root/output-maven\"))(Resolver.mavenStylePatterns), Resolver.file(\"frozen-inputs\", file(\"$build_root/input-maven\"))(Resolver.mavenStylePatterns))"
 make_publish_options() {
-  local target separator="" settings="set Seq("
-  local verify="set TaskKey[Unit](\"verifyDerivedPublishDestinations\") := { val expected = $publish_destination; "
+  local target reference separator="" settings="set Seq("
+  local verify="set TaskKey[Unit](\"verifyDerivedPublishDestinations\") := { val expected = $publish_destination; val expectedResolvers = $offline_resolvers; "
   publish_options=()
   for target in "$@"; do
-    settings+="$separator$target / publishTo := $publish_destination"
-    verify+="require(($target / publishTo).value == expected, \"$target publishTo differs from the owned repository\"); "
+    reference="LocalProject(\"$target\")"
+    settings+="$separator$reference / publishTo := $publish_destination, $reference / resolvers := $offline_resolvers"
+    verify+="require(($reference / publishTo).value == expected, \"$target publishTo differs from the owned repository\"); "
+    verify+="require(($reference / resolvers).value == expectedResolvers, \"$target resolvers differ from the frozen file repositories\"); "
     separator=", "
   done
   publish_options=("$settings)" "$verify() }")
   for target in "$@"; do
-    publish_options+=("show $target / publishTo")
+    publish_options+=("show $target / publishTo" "show $target / resolvers")
   done
   publish_options+=("verifyDerivedPublishDestinations")
 }
