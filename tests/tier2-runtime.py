@@ -29,7 +29,8 @@ def save():
 def run(name, args, cwd=root, env=None, stdout_only=False):
     command = [str(arg) for arg in args]
     if command[:2] == ["nix", "build"]:
-        command += ["--option", "max-jobs", "2", "--option", "cores", "2", "--option", "eval-cache", "false"]
+        command += ["--option", "sandbox", "true", "--option", "max-jobs", "2",
+                    "--option", "cores", "2", "--option", "eval-cache", "false"]
     entry = {"name": name, "command": command, "cwd": str(cwd),
              "started": time.time(), "log": name + ".log"}
     report["commands"].append(entry)
@@ -54,6 +55,11 @@ def output(*args):
 report.update(revision=output("git", "rev-parse", "HEAD"),
               dirty=output("git", "status", "--porcelain"),
               system=output("nix", "eval", "--impure", "--raw", "--expr", "builtins.currentSystem"))
+actual_sandbox = run("sandbox-setting", ["nix", "config", "show", "sandbox", "--option", "sandbox", "true"],
+                     stdout_only=True).strip()
+if actual_sandbox != "true":
+    raise RuntimeError("runtime derivations require the actual Nix sandbox setting to be true")
+report["sandbox"] = actual_sandbox
 if report["dirty"]:
     raise RuntimeError("commit the reviewed source before capturing runtime evidence")
 report["sourceReference"] = f"git+file://{root}?rev={report['revision']}"
@@ -87,7 +93,7 @@ for path in project.glob("*.scala"):
         path.write_text(path.read_text().replace("assertEquals(greeting,", "assertEquals(Main.greeting,"))
 report["scalaVersion"] = scala_version
 environment = dict(os.environ, SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR="https://repo.maven.apache.org/maven2")
-environment["NIX_CONFIG"] = os.environ.get("NIX_CONFIG", "") + "\nmax-jobs = 2\ncores = 2\neval-cache = false\n"
+environment["NIX_CONFIG"] = os.environ.get("NIX_CONFIG", "") + "\nsandbox = true\nmax-jobs = 2\ncores = 2\neval-cache = false\n"
 run("capture", [cli / "bin/scala-cli-purifier", "lock", "--test", "--no-ide", "--name", "hello"], project, environment)
 lock = project / "scala-cli-purifier.lock.json"
 report.update(lockSha256=hashlib.sha256(lock.read_bytes()).hexdigest(),
@@ -174,7 +180,7 @@ for name, expression in (
 ):
     path = results / (name + ".nix")
     path.write_text(expression)
-    command = ["nix", "build", "--expr", expression, "--print-build-logs", "--option", "sandbox", "true",
+    command = ["nix", "build", "--expr", expression, "--print-build-logs",
                "--out-link", results / name]
     run(name, command)
     if name != "pure-build":

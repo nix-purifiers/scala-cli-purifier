@@ -28,7 +28,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
       - name: Check the flake
-        run: nix flake check --print-build-logs --keep-going
+        run: |
+          scala_sandbox=$(nix config show sandbox --option sandbox true)
+          echo "Nix sandbox=$scala_sandbox"
+          test "$scala_sandbox" = true
+          nix flake check --print-build-logs --keep-going --option sandbox true
 
   # Relocking every fixture reproduces its lockfile byte for byte.
   conformance-relock:
