@@ -41,7 +41,8 @@ jobs:
         run: |
           git rev-parse HEAD
           nix build '.#checks.aarch64-darwin.url-ipv4-diagnostic' \
-            --no-link --print-build-logs --option sandbox true \
+            '.#checks.aarch64-darwin.url-jvm-diagnostic' \
+            --keep-going --no-link --print-build-logs --option sandbox true \
             --option max-jobs 2 --option cores 2 --option eval-cache false
 
   # Relocking every fixture reproduces its lockfile byte for byte.

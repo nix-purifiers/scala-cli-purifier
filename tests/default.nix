@@ -59,6 +59,27 @@ let
     '';
   });
 
+  # Official same-version JVM payload, separate from the native SDK and
+  # fixed by its release asset digest. No source bootstrap or substitution.
+  urlJvmJar = pkgs.fetchurl {
+    url = "https://github.com/VirtusLab/scala-cli/releases/download/v1.18.0/scala-cli.jar";
+    sha256 = "1ec9f3f906d4cad5ef603cb5fef1561f98beb678c5c8f4a157004aa5ad1dcc91";
+  };
+  urlJvmCli =
+    (pkgs.writeShellScriptBin "scala-cli" ''
+      exec ${pkgs.python3.interpreter} -B ${./url-jvm-cli-probe.py} \
+        ${lib.getExe' pkgs.jdk21_headless "java"} ${urlJvmJar} "$@"
+    '')
+    // {
+      version = "1.18.0";
+    };
+  urlJvm = (build.override { scala-cli = urlJvmCli; }) { src = ./fixtures/url; };
+  urlJvmPackage = urlJvm.packages.url.overrideAttrs (old: {
+    preBuild = (old.preBuild or "") + ''
+      ${pkgs.python3.interpreter} -B ${./local-networking.py}
+    '';
+  });
+
   # Dependencies from ivy2Local and m2Local, which the build is given as
   # directories; the lock was made with those of fixtures/local-home.
   local = build {
@@ -336,6 +357,7 @@ in
   ];
   url-runs = runs "url-runs" url.packages.url [ "hiccup from a URL: true" ];
   url-ipv4-diagnostic = runs "url-ipv4-diagnostic" urlIpv4Package [ "hiccup from a URL: true" ];
+  url-jvm-diagnostic = runs "url-jvm-diagnostic" urlJvmPackage [ "hiccup from a URL: true" ];
   local-runs = runs "local-runs" local.packages.local [
     "FROM IVY2LOCAL!"
     "from m2local..."
