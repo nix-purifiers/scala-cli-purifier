@@ -72,6 +72,19 @@ report.update(source=snapshot, sourceNarHash=output("nix", "hash", "path", snaps
 run("retain-source", ["nix-store", "--add-root", results / "source", "--realise", snapshot])
 cli = Path(run("build-cli", ["nix", "build", "path:" + snapshot + "#cli", "--print-out-paths",
                             "--out-link", results / "cli"]).strip().splitlines()[-1])
+toolchain_command = ["nix", "build", "path:" + snapshot + f"#checks.{report['system']}.toolchain-receipt",
+                     "--print-build-logs", "--out-link", results / "toolchain"]
+run("toolchain", toolchain_command)
+run("toolchain-rebuild", [*toolchain_command, "--rebuild"])
+selected_toolchain = json.loads((results / "toolchain/versions.json").read_text())
+report["sdk"] = {key: selected_toolchain[key] for key in ("scalaCliVersion", "javaVersion")}
+report["selectedNativeToolchain"] = selected_toolchain
+built_toolchain = str((results / "toolchain").resolve())
+report["derivations"] = {"toolchain": {
+    "attribute": f"checks.{report['system']}.toolchain-receipt",
+    "derivation": output("nix-store", "--query", "--deriver", built_toolchain),
+    "output": built_toolchain, "narHash": output("nix", "hash", "path", built_toolchain)}}
+run("toolchain-derivation", ["nix", "derivation", "show", report["derivations"]["toolchain"]["derivation"]])
 project = results / "project"
 shutil.copytree(Path(snapshot) / "tests/fixtures/hello", project)
 for path in (project, *project.rglob("*")):
@@ -97,7 +110,9 @@ environment["NIX_CONFIG"] = os.environ.get("NIX_CONFIG", "") + "\nsandbox = true
 run("capture", [cli / "bin/scala-cli-purifier", "lock", "--test", "--no-ide", "--name", "hello"], project, environment)
 lock = project / "scala-cli-purifier.lock.json"
 report.update(lockSha256=hashlib.sha256(lock.read_bytes()).hexdigest(),
-              sdk={key: json.loads(lock.read_text())[key] for key in ("scalaCliVersion", "javaVersion")})
+              captureLockSdk={key: json.loads(lock.read_text())[key] for key in ("scalaCliVersion", "javaVersion")})
+if report["captureLockSdk"]["scalaCliVersion"] != selected_toolchain["scalaCliVersion"]:
+    raise RuntimeError("capture used another Scala CLI than the selected executable")
 compiler = "scala3-compiler_3" if scala_version.startswith("3.") else "scala-compiler"
 if not any(f"/{compiler}/{scala_version}/{compiler}-{scala_version}.jar" in artifact["path"]
            for artifact in json.loads(lock.read_text())["artifacts"]):
@@ -201,7 +216,8 @@ report["sample"] = {"repository": "https://github.com/VirtusLab/besom",
 sample_lock = Path(snapshot) / "tests/examples/besom-core/scala-cli-purifier.lock.json"
 sample_data = json.loads(sample_lock.read_text())
 report["sample"].update(lockSha256=hashlib.sha256(sample_lock.read_bytes()).hexdigest(),
-                         sdk={key: sample_data[key] for key in ("scalaCliVersion", "javaVersion")},
+                         recordedLockSdk={key: sample_data[key] for key in ("scalaCliVersion", "javaVersion")},
+                         selectedNativeToolchain=selected_toolchain,
                          scalaVersion="3.3.7")
 report["complete"] = True
 save()

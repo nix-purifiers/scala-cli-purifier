@@ -284,6 +284,16 @@ in
 
   inherit cli;
 
+  toolchain-receipt =
+    assert toString pkgs.jdk21_headless == toString pkgs.javaPackages.compiler.openjdk21.headless;
+    pkgs.runCommand "scala-cli-toolchain-receipt" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+      export HOME=$TMPDIR/home
+      mkdir -p "$HOME" "$out"
+      python3 -B ${./toolchain-receipt.py} \
+        ${lib.getExe' pkgs.scala-cli "scala-cli"} \
+        ${lib.getExe' pkgs.jdk21_headless "java"} > "$out/versions.json"
+    '';
+
   # The Darwin local-networking exception must allow the locked mirror's
   # loopback listener while keeping external outbound connections denied.
   local-networking =
