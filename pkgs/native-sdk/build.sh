@@ -91,9 +91,31 @@ make_publish_options \
 core_publish_options=("${publish_options[@]}")
 make_publish_options cli
 cli_publish_options=("${publish_options[@]}")
+# toolsJVM's upstream BuildInfo computes these source-only 2.12 classpaths.
+# They are compilation prerequisites, not extra consumer publications.
+make_build_source_options() {
+  local target reference separator="" settings="set Seq("
+  local verify="set TaskKey[Unit](\"verifyInternalBuildResolvers\") := { val expectedResolvers = $offline_resolvers; "
+  build_source_options=()
+  for target in "$@"; do
+    reference="LocalProject(\"$target\")"
+    settings+="$separator$reference / resolvers := $offline_resolvers"
+    verify+="require(($reference / resolvers).value == expectedResolvers, \"$target internal build resolvers differ from frozen file repositories\"); "
+    separator=", "
+  done
+  build_source_options=("$settings)" "$verify() }")
+  for target in "$@"; do
+    build_source_options+=("show $target / resolvers")
+  done
+  build_source_options+=("verifyInternalBuildResolvers")
+}
+make_build_source_options \
+  nscplugin2_12 nativelib2_12 clib2_12 auxlib2_12 scalalib2_12 \
+  javalib2_12 posixlib2_12 windowslib2_12
+core_build_source_options=("${build_source_options[@]}")
 run_sbt core "$launcher_core" core-publication \
   '++3.1.3' 'set ThisBuild / offline := true' \
-  'set javalibintf / scalaVersion := "3.1.3"' "${core_publish_options[@]}" \
+  'set javalibintf / scalaVersion := "3.1.3"' "${core_publish_options[@]}" "${core_build_source_options[@]}" \
   'javalibintf / publish' \
   'utilJVM2_12 / publish' 'nirJVM2_12 / publish' 'toolsJVM2_12 / publish' \
   'nscplugin2_13 / publish' 'nativelib2_13 / publish' 'clib2_13 / publish' \
@@ -102,6 +124,6 @@ run_sbt core "$launcher_core" core-publication \
   'posixlib3 / publish' 'windowslib3 / publish' 'javalib3 / publish' \
   'auxlib3 / publish' 'testInterfaceSbtDefs3 / publish' \
   'scala3lib3 / publish' 'testInterface3 / publish' \
-  '++3.3.4' 'verifyDerivedPublishDestinations' 'nscplugin3 / publish' 'scala3lib3 / publish'
+  '++3.3.4' 'verifyDerivedPublishDestinations' 'verifyInternalBuildResolvers' 'nscplugin3 / publish' 'scala3lib3 / publish'
 run_sbt native-cli "$launcher_cli" cli-publication \
   '++2.12.21' 'set ThisBuild / offline := true' "${cli_publish_options[@]}" 'cli / publish'
