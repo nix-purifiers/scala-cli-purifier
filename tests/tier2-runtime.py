@@ -111,8 +111,8 @@ run("capture", [cli / "bin/scala-cli-purifier", "lock", "--test", "--no-ide", "-
 lock = project / "scala-cli-purifier.lock.json"
 report.update(lockSha256=hashlib.sha256(lock.read_bytes()).hexdigest(),
               captureLockSdk={key: json.loads(lock.read_text())[key] for key in ("scalaCliVersion", "javaVersion")})
-if report["captureLockSdk"]["scalaCliVersion"] != selected_toolchain["scalaCliVersion"]:
-    raise RuntimeError("capture used another Scala CLI than the selected executable")
+if report["captureLockSdk"] != report["sdk"]:
+    raise RuntimeError("capture SDK differs from the selected native executables")
 compiler = "scala3-compiler_3" if scala_version.startswith("3.") else "scala-compiler"
 if not any(f"/{compiler}/{scala_version}/{compiler}-{scala_version}.jar" in artifact["path"]
            for artifact in json.loads(lock.read_text())["artifacts"]):
