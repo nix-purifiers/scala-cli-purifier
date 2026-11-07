@@ -132,3 +132,102 @@ jobs:
             ${{ runner.temp }}/scala-cli-runtime/project/scala-cli-purifier.lock.json
           if-no-files-found: error
           retention-days: 30
+
+  jvm-profile-runtime:
+    name: JVM profile runtime (Scala 3.9.0, ${{ matrix.system }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            system: x86_64-linux
+          - runner: macos-15
+            system: aarch64-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    env:
+      SCALA_CLI_TIER2_PROFILE: jvm
+      SCALA_CLI_TIER2_SCALA_VERSION: '3.9.0'
+      NIX_CONFIG: |
+        sandbox = true
+        max-jobs = 2
+        cores = 2
+        eval-cache = false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+      - name: Assert native execution system and sandbox
+        run: |
+          test "$(nix eval --impure --raw --expr builtins.currentSystem)" = '${{ matrix.system }}'
+          test "$(nix config show sandbox --option sandbox true)" = true
+      - name: Fresh JVM capture, offline execution, pure build and upstream sample
+        timeout-minutes: 100
+        run: |
+          mkdir -p "$RUNNER_TEMP/scala-cli-jvm-runtime-logs"
+          set -o pipefail
+          python3 tests/tier2-runtime.py "$RUNNER_TEMP/scala-cli-jvm-runtime" 2>&1 | tee "$RUNNER_TEMP/scala-cli-jvm-runtime-logs/driver.log"
+      - name: Retain JVM runtime receipts, logs, expressions and fresh lock
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scala-cli-jvm-runtime-${{ matrix.system }}-3.9.0
+          path: |
+            ${{ runner.temp }}/scala-cli-jvm-runtime/report.json
+            ${{ runner.temp }}/scala-cli-jvm-runtime/*.log
+            ${{ runner.temp }}/scala-cli-jvm-runtime/*.nix
+            ${{ runner.temp }}/scala-cli-jvm-runtime/project/scala-cli-purifier.lock.json
+            ${{ runner.temp }}/scala-cli-jvm-runtime-logs/driver.log
+          if-no-files-found: error
+          retention-days: 30
+
+  jvm-profile-composition:
+    name: JVM profile composition (Scala 3.3.4 fixture, ${{ matrix.system }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            system: x86_64-linux
+          - runner: macos-15
+            system: aarch64-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    env:
+      SCALA_CLI_TIER2_PROFILE: jvm
+      NIX_CONFIG: |
+        sandbox = true
+        max-jobs = 2
+        cores = 2
+        eval-cache = false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+      - name: Assert native execution system and sandbox
+        run: |
+          test "$(nix eval --impure --raw --expr builtins.currentSystem)" = '${{ matrix.system }}'
+          test "$(nix config show sandbox --option sandbox true)" = true
+      - name: Direct and transitive JVM capture, run, publication and Maven consumer
+        timeout-minutes: 60
+        env:
+          SCALA_CLI_COMPOSITION_RESULTS: ${{ runner.temp }}/scala-cli-jvm-composition
+        run: |
+          mkdir -p "$RUNNER_TEMP/scala-cli-jvm-composition-logs"
+          set -o pipefail
+          python3 tests/composition-native.py 2>&1 | tee "$RUNNER_TEMP/scala-cli-jvm-composition-logs/driver.log"
+      - name: Retain JVM composition receipts, command logs, sources and fresh locks
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scala-cli-jvm-composition-${{ matrix.system }}
+          path: |
+            ${{ runner.temp }}/scala-cli-jvm-composition/report.json
+            ${{ runner.temp }}/scala-cli-jvm-composition/*.log
+            ${{ runner.temp }}/scala-cli-jvm-composition/*.json
+            ${{ runner.temp }}/scala-cli-jvm-composition/*.scala
+            ${{ runner.temp }}/scala-cli-jvm-composition-logs/driver.log
+          if-no-files-found: error
+          retention-days: 30
