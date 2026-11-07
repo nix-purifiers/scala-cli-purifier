@@ -28,6 +28,8 @@ def save():
 
 def run(name, args, cwd=root, env=None):
     command = [str(arg) for arg in args]
+    if command[:2] == ["nix", "build"]:
+        command += ["--option", "max-jobs", "2", "--option", "cores", "2", "--option", "eval-cache", "false"]
     entry = {"name": name, "command": command, "cwd": str(cwd),
              "started": time.time(), "log": name + ".log"}
     report["commands"].append(entry)
@@ -76,6 +78,7 @@ for path in project.glob("*.scala"):
         path.write_text(path.read_text().replace("assertEquals(greeting,", "assertEquals(Main.greeting,"))
 report["scalaVersion"] = scala_version
 environment = dict(os.environ, SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR="https://repo.maven.apache.org/maven2")
+environment["NIX_CONFIG"] = os.environ.get("NIX_CONFIG", "") + "\nmax-jobs = 2\ncores = 2\neval-cache = false\n"
 run("capture", [cli / "bin/scala-cli-purifier", "lock", "--test", "--no-ide", "--name", "hello"], project, environment)
 lock = project / "scala-cli-purifier.lock.json"
 report.update(lockSha256=hashlib.sha256(lock.read_bytes()).hexdigest(),
@@ -99,10 +102,16 @@ system = report["system"]
 common = f'''let
   f = builtins.getFlake "path:{snapshot}?narHash={report['sourceNarHash']}";
   pkgs = import f.inputs.nixpkgs {{ system = "{system}"; overlays = [ f.overlays.default ]; }};
+  project = (builtins.fetchTree {{ type = "path"; path = "{project_store}"; narHash = "{report['projectNarHash']}"; }}).outPath;
+  downloads = f.lib.purifier.tree {{
+    inherit pkgs;
+    name = "scala-cli-purifier-downloads";
+    entries = f.lib.purifier.entriesFor "{system}" (f.lib.scala-cli-purifier.readLock {{ src = project; }});
+  }};
 in '''
 expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   nativeBuildInputs = [ f.packages.{system}.cli pkgs.python3 ];
-  downloads = {downloads};
+  downloads = assert toString downloads == "{downloads}"; downloads;
 }} ''
   export HOME=$TMPDIR/home
   mkdir -p "$HOME"
@@ -118,7 +127,7 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
       connection.close()
       raise SystemExit("runtime sandbox unexpectedly permits external network")
   PY
-  cp -R ${{{project_store}}} project
+  cp -R ${{project}} project
   chmod -R u+w project
   cd project
   scala-cli compile .
@@ -136,7 +145,7 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   grep -F 'scala-cli-purifier prefetch' missing.log
   cp missing.log "$out/"
 '' '''
-pure = f'(pkgs.scala-cli-purifier.buildScalaCliProject {{ src = {project_store}; }}).packages.hello'
+pure = '(pkgs.scala-cli-purifier.buildScalaCliProject { src = project; }).packages.hello'
 pure_runtime = common + f'''let package = {pure}; in
   pkgs.runCommand "scala-cli-pure-runtime" {{}} ''
     ${{package}}/bin/hello > output
