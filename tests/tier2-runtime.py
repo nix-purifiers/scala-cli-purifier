@@ -51,8 +51,14 @@ def output(*args):
 report.update(revision=output("git", "rev-parse", "HEAD"),
               dirty=output("git", "status", "--porcelain"),
               system=output("nix", "eval", "--impure", "--raw", "--expr", "builtins.currentSystem"))
-metadata = json.loads(output("nix", "flake", "metadata", "--json", "--no-write-lock-file", "path:" + str(root)))
-snapshot = metadata["path"]
+if report["dirty"]:
+    raise RuntimeError("commit the reviewed source before capturing runtime evidence")
+report["sourceReference"] = f"git+file://{root}?rev={report['revision']}"
+archived = json.loads(run("archive-source", ["nix", "flake", "archive", "--json", "--no-update-lock-file",
+                                           report["sourceReference"]]))
+snapshot = archived["path"]
+if not Path(snapshot).is_dir() or Path(snapshot).resolve() != Path(snapshot):
+    raise RuntimeError("archived source must be a materialized canonical directory")
 report.update(source=snapshot, sourceNarHash=output("nix", "hash", "path", snapshot))
 run("retain-source", ["nix-store", "--add-root", results / "source", "--realise", snapshot])
 cli = Path(run("build-cli", ["nix", "build", "path:" + snapshot + "#cli", "--print-out-paths",
