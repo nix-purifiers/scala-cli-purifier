@@ -11191,6 +11191,510 @@
       "name": "scala-native-cli-db8683441a4b6345e6bf6434d6b03068483fa332.tar.gz",
       "sha256": "aa16cfaec1a7c451848ae3d2d010e013471f9ebab03f6d181782798964cf1e42",
       "bytes": 25116
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scala-lang",
+        "scala-reflect",
+        "2.12.15"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scala-lang/scala-reflect/2.12.15/scala-reflect-2.12.15.jar",
+      "name": "org.scala-lang__scala-reflect__2.12.15.jar",
+      "sha256": "d5a21ab16b35dbe1fa9f50267d3c198d4797084a61557874ca53c85f15747e48",
+      "bytes": 3678167,
+      "repositoryPath": "org/scala-lang/scala-reflect/2.12.15/scala-reflect-2.12.15.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scala-lang.modules",
+        "scala-xml_2.12",
+        "1.3.0"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.3.0/scala-xml_2.12-1.3.0.jar",
+      "name": "org.scala-lang.modules__scala-xml_2.12__1.3.0.jar",
+      "sha256": "ccaa5edaf1e653f5ba6bfbb3cefa525f34719112b61e4fa42e8c4fcf690a3e35",
+      "bytes": 557557,
+      "repositoryPath": "org/scala-lang/modules/scala-xml_2.12/1.3.0/scala-xml_2.12-1.3.0.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalactic",
+        "scalactic_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalactic/scalactic_2.12/3.2.10/scalactic_2.12-3.2.10.jar",
+      "name": "org.scalactic__scalactic_2.12__3.2.10.jar",
+      "sha256": "7993ea53207e0bca3331a7a4371b11b9cf249d26c83294e43deeb82d06ada5a7",
+      "bytes": 1583994,
+      "repositoryPath": "org/scalactic/scalactic_2.12/3.2.10/scalactic_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-compatible",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-compatible/3.2.10/scalatest-compatible-3.2.10.jar",
+      "name": "org.scalatest__scalatest-compatible__3.2.10.jar",
+      "sha256": "fbc803990b400f41f48fb64d169a66eb5645a667e05a6d73d835a8cbe6c31c06",
+      "bytes": 1413,
+      "repositoryPath": "org/scalatest/scalatest-compatible/3.2.10/scalatest-compatible-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-core_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-core_2.12/3.2.10/scalatest-core_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-core_2.12__3.2.10.jar",
+      "sha256": "4e5ad77d2ff3d0100d8f6e0b87324bbfec4098aa3a52d0e6e30f8bf4f40734ce",
+      "bytes": 3693033,
+      "repositoryPath": "org/scalatest/scalatest-core_2.12/3.2.10/scalatest-core_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-diagrams_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-diagrams_2.12/3.2.10/scalatest-diagrams_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-diagrams_2.12__3.2.10.jar",
+      "sha256": "c0140d2032d7f69deebd66723028d634c5de86abcde0cbc9aa8fad28252a6176",
+      "bytes": 51294,
+      "repositoryPath": "org/scalatest/scalatest-diagrams_2.12/3.2.10/scalatest-diagrams_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-featurespec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-featurespec_2.12/3.2.10/scalatest-featurespec_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-featurespec_2.12__3.2.10.jar",
+      "sha256": "c7680a7f30c6b91d2a9282d22b33ff5bc186d2155802d170f54e4b56be2de699",
+      "bytes": 81728,
+      "repositoryPath": "org/scalatest/scalatest-featurespec_2.12/3.2.10/scalatest-featurespec_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-flatspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-flatspec_2.12/3.2.10/scalatest-flatspec_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-flatspec_2.12__3.2.10.jar",
+      "sha256": "657b5cae140c01d7c785cf174975bd8848d824ee7371eaff956aeee2aff2e4e5",
+      "bytes": 176047,
+      "repositoryPath": "org/scalatest/scalatest-flatspec_2.12/3.2.10/scalatest-flatspec_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-freespec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-freespec_2.12/3.2.10/scalatest-freespec_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-freespec_2.12__3.2.10.jar",
+      "sha256": "dfba635f9efdb0d2e7262be8de2ff6dbb36b81ac8f07e2a021a2449a5c0ce06e",
+      "bytes": 103801,
+      "repositoryPath": "org/scalatest/scalatest-freespec_2.12/3.2.10/scalatest-freespec_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-funspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-funspec_2.12/3.2.10/scalatest-funspec_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-funspec_2.12__3.2.10.jar",
+      "sha256": "9560528565bf03adb827eb1495f4193f5d5dbd0d0d7ca7d6aaec42db4c8829f0",
+      "bytes": 110609,
+      "repositoryPath": "org/scalatest/scalatest-funspec_2.12/3.2.10/scalatest-funspec_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-funsuite_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-funsuite_2.12/3.2.10/scalatest-funsuite_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-funsuite_2.12__3.2.10.jar",
+      "sha256": "6936855b03326b1c2349eb2e6db71ab9e3595c664299a622bd3645558f28368f",
+      "bytes": 64583,
+      "repositoryPath": "org/scalatest/scalatest-funsuite_2.12/3.2.10/scalatest-funsuite_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-matchers-core_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-matchers-core_2.12/3.2.10/scalatest-matchers-core_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-matchers-core_2.12__3.2.10.jar",
+      "sha256": "dc25772972488f368bd46d6fab73ddc1ca706a7912eaabb939eea14d82b64759",
+      "bytes": 2030514,
+      "repositoryPath": "org/scalatest/scalatest-matchers-core_2.12/3.2.10/scalatest-matchers-core_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-mustmatchers_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-mustmatchers_2.12/3.2.10/scalatest-mustmatchers_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-mustmatchers_2.12__3.2.10.jar",
+      "sha256": "2f5f5bc6957421c71015501d81bcff8a5dad023cf79420a514ef77333378a637",
+      "bytes": 184259,
+      "repositoryPath": "org/scalatest/scalatest-mustmatchers_2.12/3.2.10/scalatest-mustmatchers_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-propspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-propspec_2.12/3.2.10/scalatest-propspec_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-propspec_2.12__3.2.10.jar",
+      "sha256": "6278685a676ddb3edbd5d00c8742c44a37ec21906e131d2d583d1345c9ddf3a1",
+      "bytes": 34700,
+      "repositoryPath": "org/scalatest/scalatest-propspec_2.12/3.2.10/scalatest-propspec_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-refspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-refspec_2.12/3.2.10/scalatest-refspec_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-refspec_2.12__3.2.10.jar",
+      "sha256": "e7bfd5f92e47066a262f8c0e08535373672d9f9d58be7df1ba95935ca6e99c54",
+      "bytes": 26315,
+      "repositoryPath": "org/scalatest/scalatest-refspec_2.12/3.2.10/scalatest-refspec_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-shouldmatchers_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-shouldmatchers_2.12/3.2.10/scalatest-shouldmatchers_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-shouldmatchers_2.12__3.2.10.jar",
+      "sha256": "a5af5d76c65084d59b8bc03c26e7f886d49156303dff92f9273766a68d3ef631",
+      "bytes": 185462,
+      "repositoryPath": "org/scalatest/scalatest-shouldmatchers_2.12/3.2.10/scalatest-shouldmatchers_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-wordspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-wordspec_2.12/3.2.10/scalatest-wordspec_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest-wordspec_2.12__3.2.10.jar",
+      "sha256": "94da48f5316abfce1d2da4c00ba26194f412c49d514a5cbd8b33d7256527c1c3",
+      "bytes": 134068,
+      "repositoryPath": "org/scalatest/scalatest-wordspec_2.12/3.2.10/scalatest-wordspec_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest_2.12/3.2.10/scalatest_2.12-3.2.10.jar",
+      "name": "org.scalatest__scalatest_2.12__3.2.10.jar",
+      "sha256": "fc5f9b3adf10715c7d4d2835246118081aff3e465d6717b117e13b238849ef15",
+      "bytes": 719,
+      "repositoryPath": "org/scalatest/scalatest_2.12/3.2.10/scalatest_2.12-3.2.10.jar"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest_2.12/3.2.10/scalatest_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest_2.12__3.2.10.pom",
+      "sha256": "d4efea042e0ab88f7cdafd88ae4f117b32d5af149edb0e4f5bd8125c13e5a4b5",
+      "bytes": 4683,
+      "repositoryPath": "org/scalatest/scalatest_2.12/3.2.10/scalatest_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-core_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-core_2.12/3.2.10/scalatest-core_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-core_2.12__3.2.10.pom",
+      "sha256": "7fac9b15f31912a97856b34763acf65a38a961bdcb20454cfc0e970adb89826b",
+      "bytes": 3854,
+      "repositoryPath": "org/scalatest/scalatest-core_2.12/3.2.10/scalatest-core_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-featurespec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-featurespec_2.12/3.2.10/scalatest-featurespec_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-featurespec_2.12__3.2.10.pom",
+      "sha256": "1cb7af549d5c5af66216e5dabf41bc83b0f6fcbd90d085e8aef018f75f2ac182",
+      "bytes": 2459,
+      "repositoryPath": "org/scalatest/scalatest-featurespec_2.12/3.2.10/scalatest-featurespec_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-flatspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-flatspec_2.12/3.2.10/scalatest-flatspec_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-flatspec_2.12__3.2.10.pom",
+      "sha256": "c34f3592a78f67ea9643d8e469b9e2bedb6c676d35f09aecdb41d46a8052b9e0",
+      "bytes": 2450,
+      "repositoryPath": "org/scalatest/scalatest-flatspec_2.12/3.2.10/scalatest-flatspec_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-freespec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-freespec_2.12/3.2.10/scalatest-freespec_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-freespec_2.12__3.2.10.pom",
+      "sha256": "e0f27d4be8ec4eeaf5b782ff3836bb34092427733cd5ec3da75fe87b1d2e910f",
+      "bytes": 2450,
+      "repositoryPath": "org/scalatest/scalatest-freespec_2.12/3.2.10/scalatest-freespec_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-funsuite_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-funsuite_2.12/3.2.10/scalatest-funsuite_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-funsuite_2.12__3.2.10.pom",
+      "sha256": "88a5b3f5466085935963dd0fbf23efe18d4fee3eacc2e95d6b234fdb0a4fcddf",
+      "bytes": 2450,
+      "repositoryPath": "org/scalatest/scalatest-funsuite_2.12/3.2.10/scalatest-funsuite_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-funspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-funspec_2.12/3.2.10/scalatest-funspec_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-funspec_2.12__3.2.10.pom",
+      "sha256": "6cc1ea572961a5f49ded83b92a2cfab0f1e76da4fb4027443afc9dcc94455ced",
+      "bytes": 2447,
+      "repositoryPath": "org/scalatest/scalatest-funspec_2.12/3.2.10/scalatest-funspec_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-propspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-propspec_2.12/3.2.10/scalatest-propspec_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-propspec_2.12__3.2.10.pom",
+      "sha256": "9dbfe03edd2000190f74befb38c9dbf9b13df06a819e9dbbb477e6efb9057af6",
+      "bytes": 2450,
+      "repositoryPath": "org/scalatest/scalatest-propspec_2.12/3.2.10/scalatest-propspec_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-refspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-refspec_2.12/3.2.10/scalatest-refspec_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-refspec_2.12__3.2.10.pom",
+      "sha256": "d52819c67552fb4976c00c4578454dbd5a137c81c81c8ee42610dc878e0f12ce",
+      "bytes": 2447,
+      "repositoryPath": "org/scalatest/scalatest-refspec_2.12/3.2.10/scalatest-refspec_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-wordspec_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-wordspec_2.12/3.2.10/scalatest-wordspec_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-wordspec_2.12__3.2.10.pom",
+      "sha256": "682742fee011d543e33e53f937e1a7c57b8b49bc35c005a0374a3be8e3478d51",
+      "bytes": 2450,
+      "repositoryPath": "org/scalatest/scalatest-wordspec_2.12/3.2.10/scalatest-wordspec_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-diagrams_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-diagrams_2.12/3.2.10/scalatest-diagrams_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-diagrams_2.12__3.2.10.pom",
+      "sha256": "67e209683f146f7580574670ba43b723cb0cbbc6a4b0db8da390c54efcbc0115",
+      "bytes": 2450,
+      "repositoryPath": "org/scalatest/scalatest-diagrams_2.12/3.2.10/scalatest-diagrams_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-matchers-core_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-matchers-core_2.12/3.2.10/scalatest-matchers-core_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-matchers-core_2.12__3.2.10.pom",
+      "sha256": "04c876772e377afd401c094b6168fd909cbbd43687f987e560c14e8bc44eb979",
+      "bytes": 2465,
+      "repositoryPath": "org/scalatest/scalatest-matchers-core_2.12/3.2.10/scalatest-matchers-core_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-shouldmatchers_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-shouldmatchers_2.12/3.2.10/scalatest-shouldmatchers_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-shouldmatchers_2.12__3.2.10.pom",
+      "sha256": "afee4be10be2a5109ea34da556e45ca52be87c5ccad6d3cfe5b19bffd42102c8",
+      "bytes": 2477,
+      "repositoryPath": "org/scalatest/scalatest-shouldmatchers_2.12/3.2.10/scalatest-shouldmatchers_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-mustmatchers_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-mustmatchers_2.12/3.2.10/scalatest-mustmatchers_2.12-3.2.10.pom",
+      "name": "org.scalatest__scalatest-mustmatchers_2.12__3.2.10.pom",
+      "sha256": "99c1b55b09a83bfe6599b088f782b1c968db58bc0f2472e1bcc395f0ca5e6a1b",
+      "bytes": 2471,
+      "repositoryPath": "org/scalatest/scalatest-mustmatchers_2.12/3.2.10/scalatest-mustmatchers_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scala-lang",
+        "scala-reflect",
+        "2.12.15"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scala-lang/scala-reflect/2.12.15/scala-reflect-2.12.15.pom",
+      "name": "org.scala-lang__scala-reflect__2.12.15.pom",
+      "sha256": "9a78d210a807604bfbd80c7aa77f29b4bd8d36ccc8de21fc1382658e28a28a4a",
+      "bytes": 1813,
+      "repositoryPath": "org/scala-lang/scala-reflect/2.12.15/scala-reflect-2.12.15.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalatest",
+        "scalatest-compatible",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalatest/scalatest-compatible/3.2.10/scalatest-compatible-3.2.10.pom",
+      "name": "org.scalatest__scalatest-compatible__3.2.10.pom",
+      "sha256": "89d008a41f69f6e17e1d8e5b0c03997c021eed68968f4c8980064f8eb46a903b",
+      "bytes": 1655,
+      "repositoryPath": "org/scalatest/scalatest-compatible/3.2.10/scalatest-compatible-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scalactic",
+        "scalactic_2.12",
+        "3.2.10"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scalactic/scalactic_2.12/3.2.10/scalactic_2.12-3.2.10.pom",
+      "name": "org.scalactic__scalactic_2.12__3.2.10.pom",
+      "sha256": "772772136ecc980b2a6067264af91752146dd645a5da123e5ec7f3141a3ccb1b",
+      "bytes": 2240,
+      "repositoryPath": "org/scalactic/scalactic_2.12/3.2.10/scalactic_2.12-3.2.10.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scala-lang.modules",
+        "scala-xml_2.12",
+        "1.3.0"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.3.0/scala-xml_2.12-1.3.0.pom",
+      "name": "org.scala-lang.modules__scala-xml_2.12__1.3.0.pom",
+      "sha256": "7985b3f8986ece09a0a56984d9ce30453c62473e2bb0dfc864d0cce5a210b8a2",
+      "bytes": 2868,
+      "repositoryPath": "org/scala-lang/modules/scala-xml_2.12/1.3.0/scala-xml_2.12-1.3.0.pom"
     }
   ],
   "publications": [
@@ -11303,6 +11807,13 @@
       "module": "nscplugin_2.13.18",
       "version": "0.5.12-purifier-darwin-ipv4.1",
       "role": "source build/provided/transitive family member"
+    }
+  ],
+  "approvedDeltas": [
+    {
+      "reason": "Upstream Native CLI ScalaTest Test configuration retained",
+      "metadataSha256": "b4c8ba22296d0bebcf5a32aab3e44f393a67f6bf6a529adfc7bffc0c0a502c98",
+      "strongDeltaManifestSha256": "9f818c207769ecea2d2ff091cc017dd2fb2e3385e07ffe5bd65dc648f1024f83"
     }
   ]
 }
