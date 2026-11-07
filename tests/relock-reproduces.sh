@@ -3,21 +3,28 @@
 #
 # The conformance-relock check of the purifier contract, which needs the
 # network, so CI runs it as a job: relocks a copy of every fixture and
-# requires that each new lockfile is the committed one, byte for byte. A
+# requires byte identity when the selected SDK matches the recorded SDK.
+# Darwin may select a different Java patch from the same pinned package
+# set: require that exact executable's queried SDK and a valid checksum,
+# with every other lock field unchanged. Original locks stay untouched. A
 # relock keeps the version listings a lockfile holds inline (the sources
 # and js fixtures hold some), so those fixtures reproduce too. Run from the
 # repository root.
 set -euo pipefail
 copy=$(mktemp -d)
 trap 'rm -rf "$copy"' EXIT
+system=$(nix eval --impure --raw --expr builtins.currentSystem)
+toolchain=$(nix build --no-link --print-out-paths ".#checks.$system.toolchain-receipt" \
+  --option sandbox true --option max-jobs 2 --option cores 2 --option eval-cache false)
 cp -r tests/fixtures/. "$copy"
 chmod -R u+w "$copy"
 fixtures=(hello script sources url local js native library)
 FIXTURES="$copy" bash tests/relock-fixtures.sh "${fixtures[@]}"
 status=0
 for fixture in "${fixtures[@]}"; do
-  if cmp -s "tests/fixtures/$fixture/scala-cli-purifier.lock.json" "$copy/$fixture/scala-cli-purifier.lock.json"; then
-    echo "$fixture: the relock reproduces the lockfile"
+  if python3 -B tests/relock-compare.py "tests/fixtures/$fixture/scala-cli-purifier.lock.json" \
+    "$copy/$fixture/scala-cli-purifier.lock.json" "$toolchain/versions.json" "$system"; then
+    echo "$fixture: the relock reproduces the expected native SDK lock"
   else
     echo "$fixture: the relock differs from the committed lockfile:" >&2
     diff "tests/fixtures/$fixture/scala-cli-purifier.lock.json" "$copy/$fixture/scala-cli-purifier.lock.json" | head -40 >&2 || true
