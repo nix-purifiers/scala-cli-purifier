@@ -13753,6 +13753,20 @@
       "sha256": "0cacb5a8537c72d78e41259d6d7e4f09ffe0f7af9e86c588536d7f58e837e2e7",
       "bytes": 7058,
       "repositoryPath": "com/fasterxml/jackson/core/jackson-annotations/2.15.1/jackson-annotations-2.15.1.pom"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scala-lang",
+        "scala-library",
+        "2.12.21"
+      ],
+      "classifier": "sources",
+      "url": "https://repo.maven.apache.org/maven2/org/scala-lang/scala-library/2.12.21/scala-library-2.12.21-sources.jar",
+      "name": "org.scala-lang__scala-library__2.12.21-sources.jar",
+      "sha256": "8c017a4ac49179a6d9c0e5300b38f20ec44b8f80d6b00018a5e3034c46365e10",
+      "bytes": 1068384,
+      "repositoryPath": "org/scala-lang/scala-library/2.12.21/scala-library-2.12.21-sources.jar"
     }
   ],
   "publications": [
@@ -13882,6 +13896,11 @@
       "reason": "SBT implicit ScalaDocTool configurations for preserved3.1.3 and3.3.4 phases",
       "metadataSha256": "20900bcbed0f2a79fb83fc63c02ded0ba05440e5686c7a0fc620e619b712dc68",
       "strongDeltaManifestSha256": "cb64ff9ef81b9eec6a9a35e2fba0b9c81469411d67fb372f8d6b317eccf745d0"
+    },
+    {
+      "reason": "Preserve upstream toolsBuildInfo source-only Scala2.12 prerequisite",
+      "metadataSha256": "d6c6da7093d66964f24b3c76fe564c9da21b9a8589ebc07d7dfe958a96cf5611",
+      "strongDeltaManifestSha256": "b2c623a4733a261d7b9111e7384bfd006cac53caa6c49c4e86899d67fa7ae104"
     }
   ]
 }
