@@ -128,7 +128,6 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   grep -qxF '{{"hello":"Nix World"}}' run.log
   mkdir "$out"
   cp run.log "$out/"
-  cp test.log "$out/"
   rm -rf .scala-cli-purifier
   if scala-cli compile . > missing.log 2>&1; then
     echo 'missing prefetch unexpectedly succeeded' >&2
