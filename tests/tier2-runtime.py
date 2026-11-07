@@ -98,6 +98,11 @@ report["derivations"] = {"toolchain": {
     "derivation": output("nix-store", "--query", "--deriver", built_toolchain),
     "output": built_toolchain, "narHash": output("nix", "hash", "path", built_toolchain)}}
 run("toolchain-derivation", ["nix", "derivation", "show", report["derivations"]["toolchain"]["derivation"]])
+if profile == "jvm":
+    report["derivations"]["initial-frontend"] = {
+        "derivation": output("nix-store", "--query", "--deriver", str(raw_sdk)),
+        "output": str(raw_sdk), "narHash": output("nix", "hash", "path", str(raw_sdk))}
+
 project = results / "project"
 shutil.copytree(Path(snapshot) / "tests/fixtures/hello", project)
 for path in (project, *project.rglob("*")):

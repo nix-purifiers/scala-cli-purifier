@@ -94,6 +94,11 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
             capture += ['--','--verbose','.']
         run(*capture)
         locked=json.loads((workspace/'scala-cli-purifier.lock.json').read_text())
+        if results:
+            shutil.copy2(workspace/'scala-cli-purifier.lock.json', results/(case+'-lock.json'))
+            for source in workspace.glob('*.scala'):
+                shutil.copy2(source, results/(case+'-'+source.name))
+
         assert len(locked['projectInputs'])==1
         supplied = '/example/project-input/' if case == 'direct' else '/org/apache/commons/commons-lang3/'
         assert not any(supplied in entry['path'] for entry in locked['artifacts'])
