@@ -15,6 +15,8 @@
   flakeLib,
   # The scala-cli-purifier command, whose build runs its unit tests.
   cli,
+  # Raw initial frontend used by this test scope's executable receipt.
+  scala-cli ? pkgs.scala-cli,
 }:
 let
   inherit (pkgs) lib;
@@ -291,7 +293,7 @@ let
   };
   # A scala-cli of another version than the lock was made with, which fails
   # evaluation, naming both versions.
-  otherScalaCli = pkgs.scala-cli.overrideAttrs {
+  otherScalaCli = scala-cli.overrideAttrs {
     version = "0.0.1";
     __intentionallyOverridingVersion = true;
   };
@@ -338,7 +340,7 @@ in
       export HOME=$TMPDIR/home
       mkdir -p "$HOME" "$out"
       python3 -B ${./toolchain-receipt.py} \
-        ${lib.getExe' pkgs.scala-cli "scala-cli"} \
+        ${lib.getExe' scala-cli "scala-cli"} \
         ${lib.getExe' pkgs.jdk21_headless "java"} > "$out/versions.json"
     '';
 

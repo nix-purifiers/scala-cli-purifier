@@ -15,6 +15,24 @@ import lockfile
 import scala_cli_purifier as scp
 
 
+class ReleaseSelectionTests(unittest.TestCase):
+    def test_publish_passes_the_selected_initial_frontend_to_nix(self):
+        environment = {
+            "SCALA_CLI_PURIFIER_LIB": "/library",
+            "SCALA_CLI_PURIFIER_SCALA_CLI_PACKAGE": "/nix/store/selected-jvm-sdk",
+            "SCALA_CLI_PURIFIER_SCALA_CLI_VERSION": "1.18.0",
+            "SCALA_CLI_PURIFIER_NIXPKGS": "/nixpkgs",
+            "SCALA_CLI_PURIFIER_PURIFIER": "/purifier",
+        }
+        with mock.patch.dict(os.environ, environment, clear=True), mock.patch.object(scp.subprocess, "run") as run:
+            run.return_value.stdout = "/nix/store/release\n"
+            self.assertEqual(scp.build_release(Path("/project"), Path("/project/lock")), Path("/nix/store/release"))
+        arguments = run.call_args.args[0]
+        index = arguments.index("scalaCliPath")
+        self.assertEqual(arguments[index - 1:index + 5],
+                         ["--argstr", "scalaCliPath", "/nix/store/selected-jvm-sdk", "--argstr", "scalaCliVersion", "1.18.0"])
+
+
 class EnvironmentTests(unittest.TestCase):
     def test_bsp_socket_fits_in_a_github_runner_work_directory(self):
         work = Path("/home/runner/work/_temp/scala-cli-purifier-85i0hn5y/check-listings")

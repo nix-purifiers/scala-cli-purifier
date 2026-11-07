@@ -8,6 +8,21 @@
 # this flake in `projects` holds the overlay as `scala-cli-purifier/default`,
 # which its package sets apply by default.
 { closure-lib, ... }:
+let
+  nativeOverlay = closure-lib.caisson.nixpkgs.mkPackagesOverlay ../../pkgs "scala-cli-purifier";
+in
 {
-  overlay = closure-lib.caisson.nixpkgs.mkPackagesOverlay ../../pkgs "scala-cli-purifier";
+  overlay =
+    final: prev:
+    let
+      native = nativeOverlay final prev;
+    in
+    native
+    // {
+      scala-cli-purifier-jvm = native.scala-cli-purifier.overrideScope (
+        _: _: {
+          scala-cli = final.scala-cli-purifier.jvm-sdk;
+        }
+      );
+    };
 }

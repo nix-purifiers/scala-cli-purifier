@@ -11,15 +11,22 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import sys
 import time
 
 
+profile = os.environ.get("SCALA_CLI_TIER2_PROFILE", "native")
+if profile not in ("native", "jvm"):
+    raise RuntimeError("profile must be native or jvm")
+cli_attribute = "cli-jvm" if profile == "jvm" else "cli"
+scope_attribute = "scala-cli-purifier-jvm" if profile == "jvm" else "scala-cli-purifier"
+check_prefix = "jvm-profile." if profile == "jvm" else ""
 root = Path(__file__).resolve().parent.parent
 results = Path(sys.argv[1]).resolve()
 results.mkdir(parents=True, exist_ok=False)
-report = {"commands": [], "complete": False}
+report = {"commands": [], "complete": False, "profile": profile}
 
 
 def save():
@@ -70,18 +77,24 @@ if not Path(snapshot).is_dir() or Path(snapshot).resolve() != Path(snapshot):
     raise RuntimeError("archived source must be a materialized canonical directory")
 report.update(source=snapshot, sourceNarHash=output("nix", "hash", "path", snapshot))
 run("retain-source", ["nix-store", "--add-root", results / "source", "--realise", snapshot])
-cli = Path(run("build-cli", ["nix", "build", "path:" + snapshot + "#cli", "--print-out-paths",
+cli = Path(run("build-cli", ["nix", "build", "path:" + snapshot + "#" + cli_attribute, "--print-out-paths",
                             "--out-link", results / "cli"]).strip().splitlines()[-1])
-toolchain_command = ["nix", "build", "path:" + snapshot + f"#checks.{report['system']}.toolchain-receipt",
+toolchain_command = ["nix", "build", "path:" + snapshot + f"#checks.{report['system']}.{check_prefix}toolchain-receipt",
                      "--print-build-logs", "--out-link", results / "toolchain"]
 run("toolchain", toolchain_command)
 run("toolchain-rebuild", [*toolchain_command, "--rebuild"])
 selected_toolchain = json.loads((results / "toolchain/versions.json").read_text())
 report["sdk"] = {key: selected_toolchain[key] for key in ("scalaCliVersion", "javaVersion")}
-report["selectedNativeToolchain"] = selected_toolchain
+report["configuredCompilerToolchain"] = selected_toolchain
+if profile == "native":
+    report["selectedNativeToolchain"] = selected_toolchain
+else:
+    raw_sdk = Path(run("build-initial-frontend", ["nix", "build", "path:" + snapshot + "#jvm-sdk",
+                    "--print-out-paths", "--out-link", results / "initial-frontend"]).strip().splitlines()[-1])
+    report["initialFrontend"] = json.loads((raw_sdk / "share/scala-cli-jvm-sdk/manifest.json").read_text())
 built_toolchain = str((results / "toolchain").resolve())
 report["derivations"] = {"toolchain": {
-    "attribute": f"checks.{report['system']}.toolchain-receipt",
+    "attribute": f"checks.{report['system']}.{check_prefix}toolchain-receipt",
     "derivation": output("nix-store", "--query", "--deriver", built_toolchain),
     "output": built_toolchain, "narHash": output("nix", "hash", "path", built_toolchain)}}
 run("toolchain-derivation", ["nix", "derivation", "show", report["derivations"]["toolchain"]["derivation"]])
@@ -107,7 +120,10 @@ for path in project.glob("*.scala"):
 report["scalaVersion"] = scala_version
 environment = dict(os.environ, SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR="https://repo.maven.apache.org/maven2")
 environment["NIX_CONFIG"] = os.environ.get("NIX_CONFIG", "") + "\nsandbox = true\nmax-jobs = 2\ncores = 2\neval-cache = false\n"
-run("capture", [cli / "bin/scala-cli-purifier", "lock", "--test", "--no-ide", "--name", "hello"], project, environment)
+capture_command = [cli / "bin/scala-cli-purifier", "lock", "--test", "--no-ide", "--name", "hello"]
+if profile == "jvm":
+    capture_command += ["--", "--verbose", "."]
+run("capture", capture_command, project, environment)
 lock = project / "scala-cli-purifier.lock.json"
 report.update(lockSha256=hashlib.sha256(lock.read_bytes()).hexdigest(),
               captureLockSdk={key: json.loads(lock.read_text())[key] for key in ("scalaCliVersion", "javaVersion")})
@@ -117,7 +133,7 @@ compiler = "scala3-compiler_3" if scala_version.startswith("3.") else "scala-com
 if not any(f"/{compiler}/{scala_version}/{compiler}-{scala_version}.jar" in artifact["path"]
            for artifact in json.loads(lock.read_text())["artifacts"]):
     raise RuntimeError("capture did not record the requested Scala compiler")
-run("relock", [cli / "bin/scala-cli-purifier", "lock", "--test", "--no-ide", "--name", "hello"], project, environment)
+run("relock", capture_command, project, environment)
 if hashlib.sha256(lock.read_bytes()).hexdigest() != report["lockSha256"]:
     raise RuntimeError("relocking changed the freshly captured lock")
 run("prefetch", [cli / "bin/scala-cli-purifier", "prefetch"], project, environment)
@@ -141,7 +157,7 @@ common = f'''let
 in '''
 expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
-  nativeBuildInputs = [ f.packages.{system}.cli pkgs.python3 ];
+  nativeBuildInputs = [ f.packages.{system}.{cli_attribute} pkgs.python3 ];
   downloads = assert toString downloads == "{downloads}"; downloads;
 }} ''
   export HOME=$TMPDIR/home
@@ -152,7 +168,7 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   cp -R ${{project}} project
   chmod -R u+w project
   cd project
-  scala-cli compile .
+  scala-cli compile . --verbose 2>&1 | tee compile.log
   scala-cli test . 2>&1 | tee test.log
   python3 - <<'PY'
   import re
@@ -163,7 +179,7 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   scala-cli run . > run.log
   grep -qxF '{{"hello":"Nix World"}}' run.log
   mkdir "$out"
-  cp run.log "$out/"
+  cp run.log compile.log "$out/"
   rm -rf .scala-cli-purifier
   if scala-cli compile . > missing.log 2>&1; then
     echo 'missing prefetch unexpectedly succeeded' >&2
@@ -172,7 +188,7 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   grep -F 'scala-cli-purifier prefetch' missing.log
   cp missing.log "$out/"
 '' '''
-pure = '(pkgs.scala-cli-purifier.buildScalaCliProject { src = project; }).packages.hello'
+pure = f'(pkgs.{scope_attribute}.buildScalaCliProject {{ src = project; }}).packages.hello'
 pure_runtime = common + f'''let package = {pure}; in
   pkgs.runCommand "scala-cli-pure-runtime" {{}} ''
     ${{package}}/bin/hello > output
@@ -197,15 +213,26 @@ for name, expression in (
         "derivation": output("nix-store", "--query", "--deriver", built),
         "output": built, "narHash": output("nix", "hash", "path", built)}
     run(name + "-derivation", ["nix", "derivation", "show", report["derivations"][name]["derivation"]])
+    if name == "ordinary-offline":
+        compiler_log = (Path(built) / "compile.log").read_text()
+        compiler_commands = [line.removeprefix("Running ") for line in compiler_log.splitlines()
+                             if line.startswith("Running ") and "dotty.tools.dotc.Main" in line]
+        report["observedOrdinaryCompiler"] = {
+            "scope": "actual verbose compile subprocess, distinct from initial frontend manifest",
+            "commands": [shlex.split(command) for command in compiler_commands],
+            "logSha256": hashlib.sha256(compiler_log.encode()).hexdigest()}
+        if scala_version.startswith("3.") and not compiler_commands:
+            raise RuntimeError("actual Scala compiler invocation was not retained")
+
 if run("pure-executable", [results / "pure-build/bin/hello"], results).strip() != '{"hello":"Nix World"}':
     raise RuntimeError("pure executable returned the wrong dependency-derived value")
-sample_command = ["nix", "build", "path:" + snapshot + f"#checks.{system}.example-besom-core",
+sample_command = ["nix", "build", "path:" + snapshot + f"#checks.{system}.{check_prefix}example-besom-core",
                   "--print-build-logs", "--out-link", results / "besom-core"]
 run("independent-sample", sample_command)
 run("independent-sample-rebuild", [*sample_command, "--rebuild"])
 built = str((results / "besom-core").resolve())
 report["derivations"]["independent-sample"] = {
-    "attribute": f"checks.{system}.example-besom-core",
+    "attribute": f"checks.{system}.{check_prefix}example-besom-core",
     "derivation": output("nix-store", "--query", "--deriver", built),
     "output": built, "narHash": output("nix", "hash", "path", built)}
 run("independent-sample-derivation", ["nix", "derivation", "show",

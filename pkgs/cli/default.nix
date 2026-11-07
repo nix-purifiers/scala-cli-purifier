@@ -47,6 +47,11 @@ in
 stdenvNoCC.mkDerivation {
   pname = "scala-cli-purifier";
   version = lib.trim (builtins.readFile ../../version.txt);
+  passthru = {
+    inherit librarySource;
+    initialScalaCli = scala-cli;
+    configuredJava = jdk21_headless;
+  };
 
   src = lib.fileset.toSource {
     root = ./.;
@@ -102,6 +107,7 @@ stdenvNoCC.mkDerivation {
       }
       --set-default SCALA_CLI_PURIFIER_SCALA_CLI ${lib.getExe' scala-cli "scala-cli"}
       --set SCALA_CLI_PURIFIER_SCALA_CLI_VERSION ${scala-cli.version}
+      --set SCALA_CLI_PURIFIER_SCALA_CLI_PACKAGE ${scala-cli}
       --set-default SCALA_CLI_PURIFIER_JAVA_HOME ${jdk21_headless.home}
       --set SCALA_CLI_PURIFIER_LIB ${librarySource}/nix/lib
       --set SCALA_CLI_PURIFIER_NIXPKGS ${path}

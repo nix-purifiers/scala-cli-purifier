@@ -30,12 +30,14 @@
     { pkgs, self', ... }:
     {
       packages.default = self'.packages.cli;
+      packages.cli-jvm = pkgs.scala-cli-purifier-jvm.cli;
       devShells.default = pkgs.mkShell {
         packages = [
           self'.packages.cli
           pkgs.scala-cli
         ];
       };
+      devShells.jvm = pkgs.mkShell { packages = [ pkgs.scala-cli-purifier-jvm.cli ]; };
     };
 
   partitionedAttrs.checks = "checks";
@@ -60,12 +62,20 @@
         perSystem =
           { pkgs, system, ... }:
           {
-            checks = import ../../../tests {
-              inherit pkgs;
-              overlay = self.overlays.default;
-              flakeLib = self.lib;
-              inherit (self.packages.${system}) cli;
-            };
+            checks =
+              (import ../../../tests {
+                inherit pkgs;
+                overlay = self.overlays.default;
+                flakeLib = self.lib;
+                inherit (self.packages.${system}) cli;
+              })
+              // {
+                jvm-profile = import ../../../tests/jvm-profile.nix {
+                  inherit pkgs;
+                  overlay = self.overlays.default;
+                  flakeLib = self.lib;
+                };
+              };
             treefmt.programs.nixfmt.enable = true;
           };
       };

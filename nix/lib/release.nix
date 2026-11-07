@@ -14,11 +14,25 @@
   purifierSource,
   src,
   lockFile,
+  scalaCliPath ? null,
+  scalaCliVersion ? null,
 }:
 let
   pkgs = import nixpkgs { };
   buildScalaCliProject = pkgs.callPackage ./build-scala-cli-project.nix {
     purifier = import purifierSource { inherit (pkgs) lib; };
+    # The command already depends on this realized package. Preserve its
+    # store dependency and version instead of selecting Nixpkgs' default
+    # frontend again when a named scope publishes a project.
+    scala-cli =
+      if scalaCliPath == null then
+        pkgs.scala-cli
+      else
+        {
+          outPath = builtins.storePath scalaCliPath;
+          version = scalaCliVersion;
+          __toString = self: self.outPath;
+        };
   };
 in
 (buildScalaCliProject {

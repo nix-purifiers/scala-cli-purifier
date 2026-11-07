@@ -2,7 +2,23 @@
 # SPDX-License-Identifier: MIT
 """Exercise native locking and execution with a Nix-provided JVM module."""
 from pathlib import Path
-import json, os, shutil, subprocess, tempfile
+import json, os, shutil, subprocess, tempfile, hashlib
+
+
+profile = os.environ.get("SCALA_CLI_TIER2_PROFILE", "native")
+if profile not in ("native", "jvm"):
+    raise RuntimeError("profile must be native or jvm")
+cli_attribute = "cli-jvm" if profile == "jvm" else "default"
+check_prefix = "jvm-profile." if profile == "jvm" else ""
+os.environ["NIX_CONFIG"] = os.environ.get("NIX_CONFIG", "") + "\nsandbox = true\nmax-jobs = 2\ncores = 2\neval-cache = false\n"
+results = Path(os.environ["SCALA_CLI_COMPOSITION_RESULTS"]).resolve() if os.environ.get("SCALA_CLI_COMPOSITION_RESULTS") else None
+receipt = {"profile": profile, "commands": [], "cases": [], "complete": False}
+if results:
+    results.mkdir(parents=True, exist_ok=False)
+
+def save():
+    if results:
+        (results / "report.json").write_text(json.dumps(receipt, indent=2) + "\n")
 
 root = Path(__file__).resolve().parent.parent
 system = subprocess.check_output(
@@ -15,6 +31,10 @@ snapshot = json.loads(subprocess.check_output(
     ['nix', 'flake', 'archive', '--json', '--no-update-lock-file', source_reference], text=True))['path']
 if not Path(snapshot).is_dir() or Path(snapshot).resolve() != Path(snapshot):
     raise RuntimeError('archived source must be a materialized canonical directory')
+receipt.update(revision=revision, source=snapshot,
+               sourceNarHash=subprocess.check_output(['nix','hash','path',snapshot],text=True).strip())
+save()
+
 with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as temporary:
     temporary = Path(temporary)
     subprocess.run(['nix-store', '--add-root', str(temporary / 'source'), '--realise', snapshot], check=True)
@@ -30,9 +50,18 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
         '--out-link', str(temporary / 'tools'), '--expr', expression], text=True,
         env=dict(os.environ, COMPOSITION_FLAKE=snapshot)).strip())
     package = subprocess.check_output(
-        ['nix', 'build', 'path:' + snapshot + '#default', '--print-out-paths',
+        ['nix', 'build', 'path:' + snapshot + '#' + cli_attribute, '--print-out-paths',
          '--out-link', str(temporary / 'cli')], text=True).strip().splitlines()[-1]
     cli = Path(package) / 'bin/scala-cli-purifier'
+    receipt["commandPackage"] = {"output":package,
+        "derivation":subprocess.check_output(['nix-store','-q','--deriver',package],text=True).strip(),
+        "narHash":subprocess.check_output(['nix','hash','path',package],text=True).strip()}
+    if profile == "jvm":
+        sdk = subprocess.check_output(['nix','build','path:'+snapshot+'#jvm-sdk','--print-out-paths',
+            '--out-link',str(temporary/'initial-frontend')],text=True).strip().splitlines()[-1]
+        receipt["initialFrontend"] = json.loads((Path(sdk)/'share/scala-cli-jvm-sdk/manifest.json').read_text())
+    save()
+
     for case, attribute in (('direct', 'provider'), ('transitive', 'transitiveProvider')):
         workspace = temporary / case
         shutil.copytree(Path(snapshot) / 'tests/composition-source', workspace)
@@ -45,11 +74,25 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
             contents = contents.replace('projectinput.Greeting.message(name)',
                 '"[" + org.apache.commons.lang3.StringUtils.purifierIdentity() + "] " + org.apache.commons.text.WordUtils.capitalizeFully(name)')
             source.write_text(contents)
-        reference='path:'+snapshot+'#checks.'+system+'.composition.'+attribute
+        reference='path:'+snapshot+'#checks.'+system+'.'+check_prefix+'composition.'+attribute
         env=dict(os.environ,SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR='https://repo.maven.apache.org/maven2')
         def run(*args):
-            subprocess.run([str(x) for x in args],cwd=workspace,env=env,check=True)
-        run(cli,'lock','--input',reference,'--name','library','--publish','--no-ide')
+            command = [str(x) for x in args]
+            if results:
+                name = str(len(receipt["commands"])) + "-" + case
+                process = subprocess.run(command,cwd=workspace,env=env,text=True,capture_output=True)
+                output = process.stdout + process.stderr
+                (results / (name + ".log")).write_text(output)
+                receipt["commands"].append({"command":command,"returncode":process.returncode,"log":name+".log"})
+                save()
+                print(output, end="", flush=True)
+                process.check_returncode()
+            else:
+                subprocess.run(command,cwd=workspace,env=env,check=True)
+        capture = [cli,'lock','--input',reference,'--name','library','--publish','--no-ide']
+        if profile == "jvm":
+            capture += ['--','--verbose','.']
+        run(*capture)
         locked=json.loads((workspace/'scala-cli-purifier.lock.json').read_text())
         assert len(locked['projectInputs'])==1
         supplied = '/example/project-input/' if case == 'direct' else '/org/apache/commons/commons-lang3/'
@@ -84,4 +127,11 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
         subprocess.run([str(tools / 'jdk/bin/java'), '-cp', str(downstream / 'target/classes')+os.pathsep
                         +(downstream / 'classpath').read_text().strip(), 'Downstream'],
                        cwd=downstream, env=plain, check=True)
+        receipt["cases"].append({"case":case,"lockSha256":hashlib.sha256((workspace/'scala-cli-purifier.lock.json').read_bytes()).hexdigest(),
+            "recordedLockSdk":{k:locked[k] for k in ('scalaCliVersion','javaVersion')},
+            "projectInputs":locked['projectInputs'],"downstream":"ORDINARY MAVEN PASSED"})
+        save()
         print('SCALA CLI '+case.upper()+' NATIVE ROUNDTRIP PASSED', flush=True)
+
+receipt["complete"] = True
+save()
