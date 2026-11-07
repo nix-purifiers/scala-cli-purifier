@@ -125,6 +125,7 @@ common = f'''let
   }};
 in '''
 expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
+  __darwinAllowLocalNetworking = true;
   nativeBuildInputs = [ f.packages.{system}.cli pkgs.python3 ];
   downloads = assert toString downloads == "{downloads}"; downloads;
 }} ''

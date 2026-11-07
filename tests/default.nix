@@ -284,6 +284,20 @@ in
 
   inherit cli;
 
+  # The Darwin local-networking exception must allow the locked mirror's
+  # loopback listener while keeping external outbound connections denied.
+  local-networking =
+    pkgs.runCommand "scala-cli-local-networking"
+      {
+        nativeBuildInputs = [ pkgs.python3 ];
+        __darwinAllowLocalNetworking = true;
+      }
+      ''
+        python3 -B ${./local-networking.py} > result
+        mkdir "$out"
+        cp result "$out/"
+      '';
+
   hello-runs = runs "hello-runs" hello.packages.hello [ ''{"hello":"Nix World"}'' ];
   hello-tests = hello.tests;
   script-runs = runs "script-runs" script.packages.script [ "script on Scala 2.13" ];
@@ -433,6 +447,7 @@ in
   conformance-offline =
     pkgs.runCommand "conformance-offline"
       {
+        __darwinAllowLocalNetworking = true;
         nativeBuildInputs = [
           cli
           pkgs.python3
