@@ -65,16 +65,16 @@ fi
 # Upstream defines project-scoped publishTo settings. Override each selected
 # project and verify the effective values before invoking any publish task.
 publish_destination="Some(Resolver.file(\"derived-sdk\", file(\"$build_root/output-maven\"))(Resolver.mavenStylePatterns))"
-offline_resolvers="Seq(Resolver.file(\"derived-sdk\", file(\"$build_root/output-maven\"))(Resolver.mavenStylePatterns), Resolver.file(\"frozen-inputs\", file(\"$build_root/input-maven\"))(Resolver.mavenStylePatterns))"
+offline_resolvers="Seq(sbt.librarymanagement.MavenRepository(\"derived-sdk\", file(\"$build_root/output-maven\").toURI.toString), sbt.librarymanagement.MavenRepository(\"frozen-inputs\", file(\"$build_root/input-maven\").toURI.toString))"
 make_publish_options() {
   local target reference separator="" settings="set Seq("
-  local verify="set TaskKey[Unit](\"verifyDerivedPublishDestinations\") := { val expected = $publish_destination; val expectedResolvers = $offline_resolvers; "
+  local verify="set TaskKey[Unit](\"verifyDerivedPublishDestinations\") := { val expected = $publish_destination; val expectedResolvers = $offline_resolvers; require(expectedResolvers.forall(r => new java.net.URI(r.root).getScheme == \"file\"), \"resolution roots must be owned file URLs\"); "
   publish_options=()
   for target in "$@"; do
     reference="LocalProject(\"$target\")"
     settings+="$separator$reference / publishTo := $publish_destination, $reference / resolvers := $offline_resolvers"
     verify+="require(($reference / publishTo).value == expected, \"$target publishTo differs from the owned repository\"); "
-    verify+="require(($reference / resolvers).value == expectedResolvers, \"$target resolvers differ from the frozen file repositories\"); "
+    verify+="require(($reference / resolvers).value == expectedResolvers && ($reference / resolvers).value.forall(_.isInstanceOf[sbt.librarymanagement.MavenRepository]), \"$target resolvers differ from the frozen file repositories\"); "
     separator=", "
   done
   publish_options=("$settings)" "$verify() }")
@@ -95,12 +95,12 @@ cli_publish_options=("${publish_options[@]}")
 # They are compilation prerequisites, not extra consumer publications.
 make_build_source_options() {
   local target reference separator="" settings="set Seq("
-  local verify="set TaskKey[Unit](\"verifyInternalBuildResolvers\") := { val expectedResolvers = $offline_resolvers; "
+  local verify="set TaskKey[Unit](\"verifyInternalBuildResolvers\") := { val expectedResolvers = $offline_resolvers; require(expectedResolvers.forall(r => new java.net.URI(r.root).getScheme == \"file\"), \"resolution roots must be owned file URLs\"); "
   build_source_options=()
   for target in "$@"; do
     reference="LocalProject(\"$target\")"
     settings+="$separator$reference / resolvers := $offline_resolvers"
-    verify+="require(($reference / resolvers).value == expectedResolvers, \"$target internal build resolvers differ from frozen file repositories\"); "
+    verify+="require(($reference / resolvers).value == expectedResolvers && ($reference / resolvers).value.forall(_.isInstanceOf[sbt.librarymanagement.MavenRepository]), \"$target internal build resolvers differ from frozen file repositories\"); "
     separator=", "
   done
   build_source_options=("$settings)" "$verify() }")
