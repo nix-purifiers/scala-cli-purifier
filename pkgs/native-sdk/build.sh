@@ -62,10 +62,35 @@ fi
 # Publish tasks produce genuine new POMs and jars. Neither downloaded SDK
 # binaries nor POM version fields are edited. No root cross-version aggregate,
 # cliPack, assembly, test execution or upstream source cache is used.
-publish_setting="set ThisBuild / publishTo := Some(Resolver.file(\"derived-sdk\", file(\"$build_root/output-maven\"))(Resolver.mavenStylePatterns))"
+# Upstream defines project-scoped publishTo settings. Override each selected
+# project and verify the effective values before invoking any publish task.
+publish_destination="Some(Resolver.file(\"derived-sdk\", file(\"$build_root/output-maven\"))(Resolver.mavenStylePatterns))"
+make_publish_options() {
+  local target separator="" settings="set Seq("
+  local verify="set TaskKey[Unit](\"verifyDerivedPublishDestinations\") := { val expected = $publish_destination; "
+  publish_options=()
+  for target in "$@"; do
+    settings+="$separator$target / publishTo := $publish_destination"
+    verify+="require(($target / publishTo).value == expected, \"$target publishTo differs from the owned repository\"); "
+    separator=", "
+  done
+  publish_options=("$settings)" "$verify() }")
+  for target in "$@"; do
+    publish_options+=("show $target / publishTo")
+  done
+  publish_options+=("verifyDerivedPublishDestinations")
+}
+make_publish_options \
+  javalibintf utilJVM2_12 nirJVM2_12 toolsJVM2_12 \
+  nscplugin2_13 nativelib2_13 clib2_13 auxlib2_13 scalalib2_13 \
+  nscplugin3 nativelib3 clib3 posixlib3 windowslib3 javalib3 auxlib3 \
+  testInterfaceSbtDefs3 scala3lib3 testInterface3
+core_publish_options=("${publish_options[@]}")
+make_publish_options cli
+cli_publish_options=("${publish_options[@]}")
 run_sbt core "$launcher_core" core-publication \
   '++3.1.3' 'set ThisBuild / offline := true' \
-  'set javalibintf / scalaVersion := "3.1.3"' "$publish_setting" \
+  'set javalibintf / scalaVersion := "3.1.3"' "${core_publish_options[@]}" \
   'javalibintf / publish' \
   'utilJVM2_12 / publish' 'nirJVM2_12 / publish' 'toolsJVM2_12 / publish' \
   'nscplugin2_13 / publish' 'nativelib2_13 / publish' 'clib2_13 / publish' \
@@ -74,6 +99,6 @@ run_sbt core "$launcher_core" core-publication \
   'posixlib3 / publish' 'windowslib3 / publish' 'javalib3 / publish' \
   'auxlib3 / publish' 'testInterfaceSbtDefs3 / publish' \
   'scala3lib3 / publish' 'testInterface3 / publish' \
-  '++3.3.4' 'nscplugin3 / publish' 'scala3lib3 / publish'
+  '++3.3.4' 'verifyDerivedPublishDestinations' 'nscplugin3 / publish' 'scala3lib3 / publish'
 run_sbt native-cli "$launcher_cli" cli-publication \
-  '++2.12.21' 'set ThisBuild / offline := true' "$publish_setting" 'cli / publish'
+  '++2.12.21' 'set ThisBuild / offline := true' "${cli_publish_options[@]}" 'cli / publish'
