@@ -32,6 +32,39 @@ error and runs the ordinary tool with impure resolution.
 
 For persistent use, add these packages through your usual Nix configuration.
 
+## Optional JVM frontend
+
+Select the official JVM build of the same Scala CLI version explicitly:
+
+```zsh
+nix shell 'github:nix-purifiers/scala-cli-purifier#cli-jvm'
+scala-cli-purifier lock --test
+scala-cli-purifier prefetch
+scala-cli compile .
+scala-cli test .
+scala-cli run .
+```
+
+This package uses an explicit initial Java executable and the official
+Scala CLI jar. It preserves ordinary arguments and environment variables,
+including upstream project-JDK selection and version relaunch behavior.
+On Darwin it requests IPv4 at JVM startup. The `jvm-sdk` package's manifest
+describes that initial frontend, rather than guaranteeing the selection
+made by every subsequent operation. Existing default packages keep the
+native frontend, and both scopes use the existing v1 lock format.
+
+For optional sandbox builds, use the matching named package scope:
+
+```nix
+{ scala-cli-purifier-jvm }:
+(scala-cli-purifier-jvm.buildScalaCliProject { src = ./.; }).packages.app
+```
+
+The scope shares its initial frontend between capture, the ordinary
+wrapper, the builder and publication. A JVM frontend still produces
+Scala Native programs when the project selects that platform; it does
+not set properties inside those Native executables.
+
 
 ## Development loop
 
@@ -59,10 +92,13 @@ module or for the named ones:
 scala-cli-purifier update com.lihaoyi::sourcecode
 ```
 
-The commands run scala-cli on the JDK 21 of the package, which
-`SCALA_CLI_PURIFIER_JAVA_HOME` can replace; `JAVA_HOME` does not choose it,
-so a relock records the same Java version on every machine. The Nix build
-uses the headless JDK of that major version from the package set.
+The commands configure the package's JDK 21 for the project, which
+`SCALA_CLI_PURIFIER_JAVA_HOME` can replace; `JAVA_HOME` does not choose that
+default. Explicit Scala CLI options keep their upstream precedence.
+The lock records the configured Java version, and the Nix build selects
+the headless JDK of that major version from the pinned package set.
+Different systems can provide different Java patches and vendors; execution
+receipts distinguish the configured JDK from an observed compiler process.
 
 The builder recognizes legacy Java version notation in existing locks:
 `1.8.0_504` selects major `8`, while `21.0.12.1` selects `21`. Locks keep
