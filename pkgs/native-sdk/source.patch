@@ -1,0 +1,22 @@
+--- a/test-interface/src/main/scala/scala/scalanative/testinterface/TestMain.scala
++++ b/test-interface/src/main/scala/scala/scalanative/testinterface/TestMain.scala
+@@ -51,7 +51,7 @@
+      * See: https://github.com/scala-native/scala-native/issues/3630
+      */
+ 
+-    if (!LinktimeInfo.isFreeBSD && !LinktimeInfo.isOpenBSD && !LinktimeInfo.isNetBSD)
++    if (!LinktimeInfo.isFreeBSD && !LinktimeInfo.isOpenBSD && !LinktimeInfo.isNetBSD && !LinktimeInfo.isMac)
+       return
+ 
+     System.setProperty("java.net.preferIPv4Stack", "true")
+--- a/project/ScalaNativeBuildInfo.scala
++++ b/project/ScalaNativeBuildInfo.scala
+@@ -17,7 +17,7 @@
+ // It defines only values referenced and required to bootstrap build
+ object ScalaNativeBuildInfo {
+   // The next version to be released
+-  private val baseVersion = "0.5.12"
++  private val baseVersion = "0.5.12-purifier-darwin-ipv4.1"
+ 
+   // Calculation of the version to use based on CI / env state
+   val version = envOrNone("GITHUB_REF_TYPE") match {
