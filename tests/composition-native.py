@@ -10,7 +10,7 @@ system = subprocess.check_output(
 revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
 if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True).strip():
     raise RuntimeError('commit the reviewed source before capturing composition evidence')
-source_reference = f'git+file://{root}?ref=HEAD&rev={revision}&shallow=1'
+source_reference = f'git+file://{root}?ref=HEAD&rev={revision}'
 snapshot = json.loads(subprocess.check_output(
     ['nix', 'flake', 'archive', '--json', '--no-update-lock-file', source_reference], text=True))['path']
 if not Path(snapshot).is_dir() or Path(snapshot).resolve() != Path(snapshot):
