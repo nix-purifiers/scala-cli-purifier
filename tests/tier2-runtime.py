@@ -184,7 +184,7 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   scala-cli run . > run.log
   grep -qxF '{{"hello":"Nix World"}}' run.log
   mkdir "$out"
-  cp run.log compile.log "$out/"
+  cp run.log "$out/"
   rm -rf .scala-cli-purifier
   if scala-cli compile . > missing.log 2>&1; then
     echo 'missing prefetch unexpectedly succeeded' >&2
@@ -219,11 +219,18 @@ for name, expression in (
         "output": built, "narHash": output("nix", "hash", "path", built)}
     run(name + "-derivation", ["nix", "derivation", "show", report["derivations"][name]["derivation"]])
     if name == "ordinary-offline":
-        compiler_log = (Path(built) / "compile.log").read_text()
-        compiler_commands = [line.removeprefix("Running ") for line in compiler_log.splitlines()
+        # Verbose argv contains Darwin's changing scratch directory. Retain
+        # it in the raw execution log, outside the reproducible output.
+        compiler_log_path = results / "ordinary-offline-rebuild.log"
+        compiler_log = compiler_log_path.read_text()
+        compiler_prefix = "scala-cli-fresh-prefetch-offline> "
+        compiler_lines = [line.removeprefix(compiler_prefix) for line in compiler_log.splitlines()
+                          if line.startswith(compiler_prefix)]
+        compiler_commands = [line.removeprefix("Running ") for line in compiler_lines
                              if line.startswith("Running ") and "dotty.tools.dotc.Main" in line]
         report["observedOrdinaryCompiler"] = {
             "scope": "actual verbose compile subprocess, distinct from initial frontend manifest",
+            "log": compiler_log_path.name,
             "commands": [shlex.split(command) for command in compiler_commands],
             "logSha256": hashlib.sha256(compiler_log.encode()).hexdigest()}
         if scala_version.startswith("3.") and not compiler_commands:
