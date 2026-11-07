@@ -21,6 +21,7 @@ listens. It serves every URL of LOCKFILE, mirror URLs included, from the
 cache path the lockfile records, and makes certificates for their hosts.
 """
 
+import hashlib
 import http.server
 import json
 import shutil
@@ -95,6 +96,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
     origin = ""
     log = staticmethod(stderr_log)
 
+    def trace(self, event, status=None):
+        # Bounded diagnostics identify URLs without printing credentials,
+        # query strings, headers, or TLS exception text.
+        with self.server.trace_lock:
+            if self.server.trace_count >= 64:
+                return
+            self.server.trace_count += 1
+        record = {"event": event, "urlSha256": hashlib.sha256(self.url().encode()).hexdigest()}
+        if status is not None:
+            record["status"] = status
+        Handler.log("offline mirror trace: " + json.dumps(record, sort_keys=True))
+
     def url(self):
         return self.origin + self.path if self.origin else self.path
 
@@ -110,11 +123,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def answer(self, body):
         path = self.file()
         if path is None or not path.is_file():
-            Handler.log(f"offline mirror: {self.command} {self.url()} is not in the locked downloads")
+            self.trace(self.command, 404)
+            Handler.log("offline mirror: requested URL is not in the locked downloads")
             self.send_response(404)
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        self.trace(self.command, 200)
         self.send_response(200)
         self.send_header("Content-Length", str(path.stat().st_size))
         self.end_headers()
@@ -140,10 +155,12 @@ class ProxyHandler(Handler):
     certificates = {}
 
     def do_CONNECT(self):
+        self.trace("CONNECT")
         host, _, port = self.path.partition(":")
         context = self.certificates.get(host)
         if context is None:
-            Handler.log(f"offline mirror: CONNECT {self.path} is not a host of the locked downloads")
+            self.trace("CONNECT", 404)
+            Handler.log("offline mirror: CONNECT target is not a host of the locked downloads")
             self.send_response(404)
             self.send_header("Content-Length", "0")
             self.end_headers()
@@ -151,7 +168,12 @@ class ProxyHandler(Handler):
         self.send_response(200, "Connection established")
         self.end_headers()
         self.wfile.flush()
-        tls = context.wrap_socket(self.connection, server_side=True)
+        try:
+            tls = context.wrap_socket(self.connection, server_side=True)
+        except ssl.SSLError:
+            self.trace("TLS-failed")
+            raise
+        self.trace("TLS-established")
         origin = f"https://{host}" if port in ("", "443") else f"https://{host}:{port}"
         tunnel = type("TunnelHandler", (Handler,), {"origin": origin})
         try:
@@ -163,6 +185,19 @@ class ProxyHandler(Handler):
 
 class Server(http.server.ThreadingHTTPServer):
     daemon_threads = True
+
+    def __init__(self, *args, **kwargs):
+        self.trace_lock = threading.Lock()
+        self.trace_count = 0
+        super().__init__(*args, **kwargs)
+
+    def get_request(self):
+        request = super().get_request()
+        with self.trace_lock:
+            if self.trace_count < 64:
+                self.trace_count += 1
+                Handler.log('offline mirror trace: {"event": "TCP-accepted"}')
+        return request
 
 
 def start(cache, state, hosts, keytool, log=None, aliases=None):
