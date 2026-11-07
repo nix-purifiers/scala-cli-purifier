@@ -28,10 +28,10 @@ let
       if scalaCliPath == null then
         pkgs.scala-cli
       else
-        {
-          outPath = builtins.storePath scalaCliPath;
+        pkgs.symlinkJoin {
+          name = "scala-cli-selected-${scalaCliVersion}";
+          paths = [ (builtins.storePath scalaCliPath) ];
           version = scalaCliVersion;
-          __toString = self: self.outPath;
         };
   };
 in
