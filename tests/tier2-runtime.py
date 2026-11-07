@@ -131,8 +131,13 @@ expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   chmod -R u+w project
   cd project
   scala-cli compile .
-  scala-cli test . | tee test.log
-  grep -F '+ greeting is JSON' test.log
+  scala-cli test . 2>&1 | tee test.log
+  python3 - <<'PY'
+  import re
+  from pathlib import Path
+  output = re.sub(r"\\x1b\\[[0-9;]*m", "", Path("test.log").read_text())
+  assert "+ greeting is JSON" in output, "fixture assertion did not execute successfully"
+  PY
   scala-cli run . > run.log
   grep -qxF '{{"hello":"Nix World"}}' run.log
   mkdir "$out"
