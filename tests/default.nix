@@ -519,30 +519,38 @@ in
   # The jar of besom core holds its classes. The listing goes to a file
   # first: grep -q stops at the first match, and unzip, still writing the
   # listing of the whole assembly, would fail with SIGPIPE.
-  example-besom-core = pkgs.runCommand "example-besom-core" { nativeBuildInputs = [ pkgs.unzip pkgs.jdk21_headless ]; } ''
-    unzip -l ${besomCore.packages.besom-core}/share/java/besom-core.jar > listing
-    grep -q 'besom/internal/Context.class' listing
-    cat > BesomRuntime.java <<'JAVA'
-    class BesomRuntime {
-      public static void main(String[] args) throws Exception {
-        Class<?> api = Class.forName("besom.util.NonEmptyString$package$NonEmptyString$");
-        Object module = api.getField("MODULE$").get(null);
-        java.lang.reflect.Method apply = api.getMethod("apply", String.class);
-        Class<?> option = Class.forName("scala.Option");
-        Object blank = apply.invoke(module, "   ");
-        Object value = apply.invoke(module, "besom-runtime");
-        if (!(Boolean) option.getMethod("isEmpty").invoke(blank))
-          throw new AssertionError("Besom accepted a blank string");
-        if (!"besom-runtime".equals(option.getMethod("get").invoke(value)))
-          throw new AssertionError("Besom lost the nonempty value");
-        System.out.println("BESOM CORE RUNTIME PASSED");
+  example-besom-core =
+    pkgs.runCommand "example-besom-core"
+      {
+        nativeBuildInputs = [
+          pkgs.unzip
+          pkgs.jdk21_headless
+        ];
       }
-    }
-    JAVA
-    java --class-path ${besomCore.packages.besom-core}/share/java/besom-core.jar BesomRuntime.java
-    mkdir -p $out
-    ln -s ${besomCore.packages.besom-core} $out/package
-  '';
+      ''
+        unzip -l ${besomCore.packages.besom-core}/share/java/besom-core.jar > listing
+        grep -q 'besom/internal/Context.class' listing
+        cat > BesomRuntime.java <<'JAVA'
+        class BesomRuntime {
+          public static void main(String[] args) throws Exception {
+            Class<?> api = Class.forName("besom.util.NonEmptyString$package$NonEmptyString$");
+            Object module = api.getField("MODULE$").get(null);
+            java.lang.reflect.Method apply = api.getMethod("apply", String.class);
+            Class<?> option = Class.forName("scala.Option");
+            Object blank = apply.invoke(module, "   ");
+            Object value = apply.invoke(module, "besom-runtime");
+            if (!(Boolean) option.getMethod("isEmpty").invoke(blank))
+              throw new AssertionError("Besom accepted a blank string");
+            if (!"besom-runtime".equals(option.getMethod("get").invoke(value)))
+              throw new AssertionError("Besom lost the nonempty value");
+            System.out.println("BESOM CORE RUNTIME PASSED");
+          }
+        }
+        JAVA
+        java --class-path ${besomCore.packages.besom-core}/share/java/besom-core.jar BesomRuntime.java
+        mkdir -p $out
+        ln -s ${besomCore.packages.besom-core} $out/package
+      '';
 
   # The hello fixture kept external builds from the purifier lockfile
   # outside its source.
