@@ -178,6 +178,11 @@ run("independent-sample-derivation", ["nix", "derivation", "show",
 report["sample"] = {"repository": "https://github.com/VirtusLab/besom",
                     "revision": "6017c8814ac885df3c10d06969d90e2c2d8b3f9d",
                     "scope": "core compilation, class presence and NonEmptyString runtime acceptance/rejection"}
+sample_lock = Path(snapshot) / "tests/examples/besom-core/scala-cli-purifier.lock.json"
+sample_data = json.loads(sample_lock.read_text())
+report["sample"].update(lockSha256=hashlib.sha256(sample_lock.read_bytes()).hexdigest(),
+                         sdk={key: sample_data[key] for key in ("scalaCliVersion", "javaVersion")},
+                         scalaVersion="3.3.7")
 report["complete"] = True
 save()
 print(results / "report.json")
