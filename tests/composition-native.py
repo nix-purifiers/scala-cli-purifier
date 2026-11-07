@@ -7,8 +7,14 @@ import json, os, shutil, subprocess, tempfile
 root = Path(__file__).resolve().parent.parent
 system = subprocess.check_output(
     ['nix', 'eval', '--impure', '--raw', '--expr', 'builtins.currentSystem'], text=True).strip()
+revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
+if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True).strip():
+    raise RuntimeError('commit the reviewed source before capturing composition evidence')
+source_reference = f'git+file://{root}?ref=HEAD&rev={revision}'
 snapshot = json.loads(subprocess.check_output(
-    ['nix', 'flake', 'metadata', '--json', '--no-write-lock-file', 'path:' + str(root)], text=True))['path']
+    ['nix', 'flake', 'archive', '--json', '--no-update-lock-file', source_reference], text=True))['path']
+if not Path(snapshot).is_dir() or Path(snapshot).resolve() != Path(snapshot):
+    raise RuntimeError('archived source must be a materialized canonical directory')
 with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as temporary:
     temporary = Path(temporary)
     subprocess.run(['nix-store', '--add-root', str(temporary / 'source'), '--realise', snapshot], check=True)
@@ -22,14 +28,16 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
     '' """
     tools = Path(subprocess.check_output(['nix', 'build', '--impure', '--print-out-paths',
         '--out-link', str(temporary / 'tools'), '--expr', expression], text=True,
-        env=dict(os.environ, COMPOSITION_FLAKE=str(root))).strip())
+        env=dict(os.environ, COMPOSITION_FLAKE=snapshot)).strip())
     package = subprocess.check_output(
-        ['nix', 'build', str(root) + '#default', '--print-out-paths',
+        ['nix', 'build', 'path:' + snapshot + '#default', '--print-out-paths',
          '--out-link', str(temporary / 'cli')], text=True).strip().splitlines()[-1]
     cli = Path(package) / 'bin/scala-cli-purifier'
     for case, attribute in (('direct', 'provider'), ('transitive', 'transitiveProvider')):
         workspace = temporary / case
-        shutil.copytree(root / 'tests/composition-source', workspace)
+        shutil.copytree(Path(snapshot) / 'tests/composition-source', workspace)
+        for path in (workspace, *workspace.rglob('*')):
+            path.chmod(path.stat().st_mode | 0o200)
         (workspace / 'scala-cli-purifier.lock.json').unlink(missing_ok=True)
         if case == 'transitive':
             source = workspace / 'Greeting.scala'

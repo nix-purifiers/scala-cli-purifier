@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 #
-# Runs the test suite on x86_64-linux and aarch64-linux. The job `check`
+# Runs the test suite on Linux and Apple Silicon Darwin. The job `check`
 # runs `nix flake check`: the unit tests of the scala-cli-purifier command,
 # the builds of every fixture in the Nix sandbox from their lockfiles, and
 # the conformance checks of the purifier contract that run in the sandbox.
@@ -21,25 +21,44 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
       - name: Check the flake
-        run: nix flake check --print-build-logs --keep-going
+        id: flake
+        run: |
+          scala_sandbox=$(nix config show sandbox --option sandbox true)
+          echo "Nix sandbox=$scala_sandbox"
+          test "$scala_sandbox" = true
+          nix flake check --print-build-logs --keep-going --option sandbox true
+      - name: Diagnose the Darwin URL connection after a failing full check
+        if: failure() && runner.os == 'macOS' && steps.flake.outcome == 'failure'
+        run: |
+          git rev-parse HEAD
+          nix build '.#checks.aarch64-darwin.url-ipv4-diagnostic' \
+            '.#checks.aarch64-darwin.url-jvm-diagnostic' \
+            '.#checks.aarch64-darwin.url-jvm-transport-diagnostic' \
+            '.#checks.aarch64-darwin.jvm-sdk-transport' \
+            --keep-going --no-link --print-build-logs --option sandbox true \
+            --option max-jobs 2 --option cores 2 --option eval-cache false
 
   # Relocking every fixture reproduces its lockfile byte for byte.
   conformance-relock:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
       - name: Relock the fixtures and compare
         run: bash tests/relock-reproduces.sh
@@ -51,11 +70,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
       - name: Lock and update a fixture with an old version
         run: bash tests/conformance-update.sh
@@ -64,11 +85,50 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: cachix/install-nix-action@v31
       - name: Native Nix project inputs
         run: python3 tests/composition-native.py
+
+  tier2-runtime:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, macos-15]
+        scala: ['3.9.0']
+        include:
+          - runner: ubuntu-latest
+            system: x86_64-linux
+          - runner: macos-15
+            system: aarch64-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+      - name: Assert native execution system
+        run: test "$(nix eval --impure --raw --expr builtins.currentSystem)" = '${{ matrix.system }}'
+      - name: Fresh capture, prefetch, ordinary offline, pure build and upstream sample
+        env:
+          SCALA_CLI_TIER2_SCALA_VERSION: ${{ matrix.scala }}
+        run: python3 tests/tier2-runtime.py "$RUNNER_TEMP/scala-cli-runtime"
+      - name: Retain execution receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scala-cli-runtime-${{ matrix.system }}-${{ matrix.scala }}
+          path: |
+            ${{ runner.temp }}/scala-cli-runtime/report.json
+            ${{ runner.temp }}/scala-cli-runtime/*.log
+            ${{ runner.temp }}/scala-cli-runtime/*.nix
+            ${{ runner.temp }}/scala-cli-runtime/project/scala-cli-purifier.lock.json
+          if-no-files-found: error
+          retention-days: 30

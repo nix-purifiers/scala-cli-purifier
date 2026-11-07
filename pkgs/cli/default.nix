@@ -76,6 +76,8 @@ stdenvNoCC.mkDerivation {
   ];
 
   doCheck = true;
+  # Mirror unit tests start the same loopback-only server as a locked build.
+  __darwinAllowLocalNetworking = stdenvNoCC.buildPlatform.isDarwin;
   checkPhase = ''
     runHook preCheck
     export HOME="$TMPDIR/home"
