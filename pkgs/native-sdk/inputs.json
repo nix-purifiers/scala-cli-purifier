@@ -13767,6 +13767,34 @@
       "sha256": "8c017a4ac49179a6d9c0e5300b38f20ec44b8f80d6b00018a5e3034c46365e10",
       "bytes": 1068384,
       "repositoryPath": "org/scala-lang/scala-library/2.12.21/scala-library-2.12.21-sources.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.scala-lang",
+        "scala2-sbt-bridge",
+        "2.13.18"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.jar",
+      "name": "org.scala-lang__scala2-sbt-bridge__2.13.18.jar",
+      "sha256": "353e62142fea31901b01f229df2e0ab7c5b210b4d194d4e1badf1a92ad206262",
+      "bytes": 272889,
+      "repositoryPath": "org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.jar"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.scala-lang",
+        "scala2-sbt-bridge",
+        "2.13.18"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.pom",
+      "name": "org.scala-lang__scala2-sbt-bridge__2.13.18.pom",
+      "sha256": "8b2ee964f62efbd3d23dc37a2aff3230599b9b01b61340db237c0090cc4b2bc9",
+      "bytes": 1954,
+      "repositoryPath": "org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.pom"
     }
   ],
   "publications": [
@@ -13901,6 +13929,11 @@
       "reason": "Preserve upstream toolsBuildInfo source-only Scala2.12 prerequisite",
       "metadataSha256": "d6c6da7093d66964f24b3c76fe564c9da21b9a8589ebc07d7dfe958a96cf5611",
       "strongDeltaManifestSha256": "b2c623a4733a261d7b9111e7384bfd006cac53caa6c49c4e86899d67fa7ae104"
+    },
+    {
+      "reason": "Retain upstream modernScala2 precompiledcompilerbridge selection",
+      "metadataSha256": "3253cd1bc35bce7e29100e58211447c59650417b9052e848542c8b168e14e422",
+      "strongDeltaManifestSha256": "72a0ba4010427a6d0a9e071f955aa5115fe44a245312110b66ec483c8b67427b"
     }
   ]
 }

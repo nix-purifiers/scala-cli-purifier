@@ -115,7 +115,11 @@ make_build_source_options \
 core_build_source_options=("${build_source_options[@]}")
 run_sbt core "$launcher_core" core-publication \
   '++3.1.3' 'set ThisBuild / offline := true' \
-  'set javalibintf / scalaVersion := "3.1.3"' "${core_publish_options[@]}" "${core_build_source_options[@]}" \
+  'set javalibintf / scalaVersion := "3.1.3"' \
+  'set LocalProject("javalibintf") / Compile / doc / javacOptions += "-notimestamp"' \
+  'show javalibintf / Compile / doc / javacOptions' \
+  'set TaskKey[Unit]("verifyJavadocOptions") := { require((LocalProject("javalibintf") / Compile / doc / javacOptions).value.contains("-notimestamp"), "javalibintf documentation timestamp option is missing") }' \
+  'verifyJavadocOptions' "${core_publish_options[@]}" "${core_build_source_options[@]}" \
   'javalibintf / publish' \
   'utilJVM2_12 / publish' 'nirJVM2_12 / publish' 'toolsJVM2_12 / publish' \
   'nscplugin2_13 / publish' 'nativelib2_13 / publish' 'clib2_13 / publish' \
