@@ -131,6 +131,10 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
         # Maven does not consume HTTP_PROXY automatically. Use its public
         # settings format in this isolated downstream test; never print it.
         settings = ET.Element("settings")
+        mirror = ET.SubElement(ET.SubElement(settings, "mirrors"), "mirror")
+        for key, value in {"id":"test-central", "mirrorOf":"external:*", "url":"https://repo.maven.apache.org/maven2"}.items():
+            ET.SubElement(mirror, key).text = value
+
         proxy_url = os.environ.get("https_proxy") or os.environ.get("HTTPS_PROXY") or os.environ.get("http_proxy") or os.environ.get("HTTP_PROXY")
         if proxy_url:
             proxy = urlsplit(proxy_url)
@@ -150,7 +154,7 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
         settings_path.chmod(0o600)
 
         subprocess.run([str(tools / 'bin/mvn'), '-B', '-s', str(settings_path), '-Dmaven.repo.local='+str(temporary / 'ordinary-m2'),
-                        'package', 'dependency:build-classpath', '-Dmdep.outputFile=classpath'],
+                        'package', 'org.apache.maven.plugins:maven-dependency-plugin:3.11.0:build-classpath', '-Dmdep.outputFile=classpath'],
                        cwd=downstream, env=plain, check=True)
         subprocess.run([str(tools / 'jdk/bin/java'), '-cp', str(downstream / 'target/classes')+os.pathsep
                         +(downstream / 'classpath').read_text().strip(), 'Downstream'],
