@@ -11695,6 +11695,62 @@
       "sha256": "7985b3f8986ece09a0a56984d9ce30453c62473e2bb0dfc864d0cce5a210b8a2",
       "bytes": 2868,
       "repositoryPath": "org/scala-lang/modules/scala-xml_2.12/1.3.0/scala-xml_2.12-1.3.0.pom"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.bouncycastle",
+        "bcprov-jdk18on",
+        "1.78.1"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.jar",
+      "name": "org.bouncycastle__bcprov-jdk18on__1.78.1.jar",
+      "sha256": "add5915e6acfc6ab5836e1fd8a5e21c6488536a8c1f21f386eeb3bf280b702d7",
+      "bytes": 8324412,
+      "repositoryPath": "org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.jar"
+    },
+    {
+      "kind": "payload",
+      "coordinate": [
+        "org.bouncycastle",
+        "bcutil-jdk18on",
+        "1.78.1"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/bouncycastle/bcutil-jdk18on/1.78.1/bcutil-jdk18on-1.78.1.jar",
+      "name": "org.bouncycastle__bcutil-jdk18on__1.78.1.jar",
+      "sha256": "d9fa56f97b0f761ce3bc8d9d74c5d7137a987bf5bd3abfe1003f9bafa45a1d2f",
+      "bytes": 705135,
+      "repositoryPath": "org/bouncycastle/bcutil-jdk18on/1.78.1/bcutil-jdk18on-1.78.1.jar"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.bouncycastle",
+        "bcprov-jdk18on",
+        "1.78.1"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.pom",
+      "name": "org.bouncycastle__bcprov-jdk18on__1.78.1.pom",
+      "sha256": "28912d139f9eed141c394371fbe5ba6ffff91e78f1c9cb8348f944a24d204ed2",
+      "bytes": 1143,
+      "repositoryPath": "org/bouncycastle/bcprov-jdk18on/1.78.1/bcprov-jdk18on-1.78.1.pom"
+    },
+    {
+      "kind": "pom",
+      "coordinate": [
+        "org.bouncycastle",
+        "bcutil-jdk18on",
+        "1.78.1"
+      ],
+      "classifier": "",
+      "url": "https://repo.maven.apache.org/maven2/org/bouncycastle/bcutil-jdk18on/1.78.1/bcutil-jdk18on-1.78.1.pom",
+      "name": "org.bouncycastle__bcutil-jdk18on__1.78.1.pom",
+      "sha256": "741d55cb45c4c2c889b5a436b747dc2152923132e426be6ef55500eee7fa5312",
+      "bytes": 1324,
+      "repositoryPath": "org/bouncycastle/bcutil-jdk18on/1.78.1/bcutil-jdk18on-1.78.1.pom"
     }
   ],
   "publications": [
@@ -11814,6 +11870,11 @@
       "reason": "Upstream Native CLI ScalaTest Test configuration retained",
       "metadataSha256": "b4c8ba22296d0bebcf5a32aab3e44f393a67f6bf6a529adfc7bffc0c0a502c98",
       "strongDeltaManifestSha256": "9f818c207769ecea2d2ff091cc017dd2fb2e3385e07ffe5bd65dc648f1024f83"
+    },
+    {
+      "reason": "Correct namespace-free BouncyCastle POM traversal; exact offline meta missing coordinates",
+      "metadataSha256": "59c1c8ed3520dc55572701e9b1c8bc39e54fdeb8a3564f9203687a14be5f269e",
+      "strongDeltaManifestSha256": "7ca0bf4fccefb498b9e1620206cd96acebf4d985b2c760b0589d60eec070fba3"
     }
   ]
 }
