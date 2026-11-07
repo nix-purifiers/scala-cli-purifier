@@ -60,8 +60,11 @@ For optional sandbox builds, use the matching named package scope:
 (scala-cli-purifier-jvm.buildScalaCliProject { src = ./.; }).packages.app
 ```
 
-The scope shares its initial frontend between capture, the ordinary
-wrapper, the builder and publication. A JVM frontend still produces
+With the scope's configured defaults, capture, the ordinary wrapper,
+the builder and publication share the same initial frontend. An explicit
+`SCALA_CLI_PURIFIER_SCALA_CLI` override changes the frontend invoked by
+capture and the ordinary wrapper; the builder and publication continue
+to use the package configured in the scope. A JVM frontend still produces
 Scala Native programs when the project selects that platform; it does
 not set properties inside those Native executables.
 
