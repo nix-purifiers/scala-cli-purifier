@@ -3,6 +3,8 @@
 """Exercise native locking and execution with a Nix-provided JVM module."""
 from pathlib import Path
 import json, os, shutil, subprocess, tempfile, hashlib
+from urllib.parse import urlsplit, unquote
+import xml.etree.ElementTree as ET
 
 
 profile = os.environ.get("SCALA_CLI_TIER2_PROFILE", "native")
@@ -126,7 +128,28 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
           <dependencies><dependency><groupId>{group}</groupId><artifactId>{artifact}</artifactId>
           <version>{pom.parent.name}</version></dependency></dependencies></project>''')
         plain = dict(os.environ, JAVA_HOME=str(tools / 'jdk'))
-        subprocess.run([str(tools / 'bin/mvn'), '-B', '-Dmaven.repo.local='+str(temporary / 'ordinary-m2'),
+        # Maven does not consume HTTP_PROXY automatically. Use its public
+        # settings format in this isolated downstream test; never print it.
+        settings = ET.Element("settings")
+        proxy_url = os.environ.get("https_proxy") or os.environ.get("HTTPS_PROXY") or os.environ.get("http_proxy") or os.environ.get("HTTP_PROXY")
+        if proxy_url:
+            proxy = urlsplit(proxy_url)
+            entry = ET.SubElement(ET.SubElement(settings, "proxies"), "proxy")
+            values = {"id":"test-environment", "active":"true", "protocol":proxy.scheme,
+                      "host":proxy.hostname, "port":str(proxy.port or 80)}
+            no_proxy = os.environ.get("no_proxy") or os.environ.get("NO_PROXY")
+            if no_proxy:
+                values["nonProxyHosts"] = "|".join(x.strip() for x in no_proxy.split(",") if x.strip())
+            if proxy.username is not None:
+                values["username"] = unquote(proxy.username)
+                values["password"] = unquote(proxy.password or "")
+            for key, value in values.items():
+                ET.SubElement(entry, key).text = value
+        settings_path = temporary / "ordinary-maven-settings.xml"
+        settings_path.write_bytes(ET.tostring(settings, encoding="utf-8", xml_declaration=True))
+        settings_path.chmod(0o600)
+
+        subprocess.run([str(tools / 'bin/mvn'), '-B', '-s', str(settings_path), '-Dmaven.repo.local='+str(temporary / 'ordinary-m2'),
                         'package', 'dependency:build-classpath', '-Dmdep.outputFile=classpath'],
                        cwd=downstream, env=plain, check=True)
         subprocess.run([str(tools / 'jdk/bin/java'), '-cp', str(downstream / 'target/classes')+os.pathsep
