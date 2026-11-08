@@ -5,7 +5,7 @@
   stdenvNoCC,
   fetchurl,
   writeText,
-  jdk21_headless,
+  jdk17_headless,
   python3,
   git,
   coreutils,
@@ -40,7 +40,7 @@ stdenvNoCC.mkDerivation {
   version = manifest.variant;
   dontUnpack = true;
   nativeBuildInputs = [
-    jdk21_headless
+    jdk17_headless
     python3
     git
     coreutils
