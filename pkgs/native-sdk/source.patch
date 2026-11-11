@@ -16,7 +16,70 @@
  object ScalaNativeBuildInfo {
    // The next version to be released
 -  private val baseVersion = "0.5.12"
-+  private val baseVersion = "0.5.12-purifier-darwin-ipv4.1"
++  private val baseVersion = "0.5.12-purifier-darwin-ipv4.2"
  
    // Calculation of the version to use based on CI / env state
    val version = envOrNone("GITHUB_REF_TYPE") match {
+--- a/util/src/main/scala/scala/scalanative/io/VirtualDirectory.scala
++++ b/util/src/main/scala/scala/scalanative/io/VirtualDirectory.scala
+@@ -6,7 +6,6 @@
+ import java.nio.ByteBuffer
+ import java.nio.channels._
+ import java.nio.file._
+-import java.util.HashMap
+ 
+ import scalanative.util.{Scope, acquire, defer}
+ 
+@@ -174,16 +173,9 @@
+       extends NioDirectory {
+     def uri: URI = URI.create(s"jar:${path.toUri}")
+     private val fileSystem: FileSystem =
+-      acquire {
+-        try {
+-          val params = new HashMap[String, String]()
+-          params.put("create", "false")
+-          FileSystems.newFileSystem(uri, params)
+-        } catch {
+-          case e: FileSystemAlreadyExistsException =>
+-            FileSystems.getFileSystem(uri)
+-        }
+-      }
++      // Each Scope closes what it acquires. Open a private filesystem rather
++      // than sharing a URI-registered filesystem with another Scope.
++      acquire(FileSystems.newFileSystem(path, java.util.Collections.emptyMap[String, String]()))
+ 
+     override def pathMatcher(pattern: String): PathMatcher =
+       fileSystem.getPathMatcher(pattern)
+@@ -191,14 +183,11 @@
+     override def files: Seq[Path] = {
+       val roots = jIteratorToSeq(fileSystem.getRootDirectories.iterator())
+ 
+-      roots
+-        .flatMap { path =>
+-          jIteratorToSeq {
+-            Files
+-              .walk(path, Integer.MAX_VALUE, FileVisitOption.FOLLOW_LINKS)
+-              .iterator()
+-          }.filter(Files.isRegularFile(_))
+-        }
++      roots.flatMap { path =>
++        val walk = Files.walk(path, Integer.MAX_VALUE, FileVisitOption.FOLLOW_LINKS)
++        try jIteratorToSeq(walk.iterator()).filter(Files.isRegularFile(_)).toVector
++        finally walk.close()
++      }
+     }
+   }
+ 
+--- a/tools/src/main/scala/scala/scalanative/linker/Infos.scala
++++ b/tools/src/main/scala/scala/scalanative/linker/Infos.scala
+@@ -13,6 +13,10 @@
+ 
+ sealed abstract class ScopeInfo extends Info {
+   override def name: nir.Global.Top
++  // Hierarchy sets influence runtime type IDs. Keep identity equality while
++  // giving each scope a stable hash derived from its unique NIR name.
++  final override def hashCode(): Int = name.hashCode()
++
+   def ty: nir.Type.Ref = nir.Type.Ref(name)
+   val members = mutable.UnrolledBuffer.empty[MemberInfo]
+   val calls = mutable.Set.empty[nir.Sig]
