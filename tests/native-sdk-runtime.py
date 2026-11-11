@@ -102,6 +102,8 @@ common = f'''let
   pkgs = import f.inputs.nixpkgs {{ system = "{system}"; overlays = [ f.overlays.default ]; }};
 in '''
 sdk = build("sdk", common + 'pkgs.callPackage (f.outPath + "/pkgs/native-sdk") { checkpoint = "sdk"; }')
+run("sdk-publication-snapshot", sys.executable, root / "tests/native-sdk-snapshot.py",
+    sdk, results / "sdk-publication")
 publication = json.loads((sdk / "receipts/publication.json").read_text())
 variant = publication["variant"]
 shutil.copyfile(sdk / "receipts/publication.json", results / "publication.json")

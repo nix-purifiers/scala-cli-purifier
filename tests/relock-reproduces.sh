@@ -22,6 +22,9 @@ native_sdk=$(nix eval --offline --impure --raw --expr '
   let f = builtins.getFlake (toString ./.);
       sdk = f.packages.${builtins.currentSystem}.cli.configuredNativeSDK;
   in if sdk == null then "" else toString sdk')
+if [ -n "$native_sdk" ] && [ -n "${NATIVE_SDK_DIAGNOSTIC_DIR:-}" ]; then
+  python3 tests/native-sdk-snapshot.py "$native_sdk" "$NATIVE_SDK_DIAGNOSTIC_DIR"
+fi
 cp -r tests/fixtures/. "$copy"
 chmod -R u+w "$copy"
 fixtures=(hello script sources url local js native library)

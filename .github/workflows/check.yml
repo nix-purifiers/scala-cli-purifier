@@ -65,6 +65,16 @@ jobs:
             sandbox = true
       - name: Relock the fixtures and compare
         run: bash tests/relock-reproduces.sh
+        env:
+          NATIVE_SDK_DIAGNOSTIC_DIR: ${{ runner.temp }}/scala-cli-relock-sdk-publication
+      - name: Retain the Darwin relock SDK publication bytes
+        if: always() && matrix.runner == 'macos-15'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scala-cli-relock-sdk-publication-aarch64-darwin
+          path: ${{ runner.temp }}/scala-cli-relock-sdk-publication/
+          if-no-files-found: error
+          retention-days: 30
 
   # `lock` keeps the resolution of a lockfile, and `update` moves it to
   # what is published now; each leaves a lockfile that passes the stale
@@ -266,5 +276,6 @@ jobs:
             ${{ runner.temp }}/scala-cli-native-source-sdk/*.log
             ${{ runner.temp }}/scala-cli-native-source-sdk/*.nix
             ${{ runner.temp }}/scala-cli-native-source-sdk/project/*.scala
+            ${{ runner.temp }}/scala-cli-native-source-sdk/sdk-publication/
           if-no-files-found: error
           retention-days: 30
