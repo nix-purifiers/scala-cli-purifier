@@ -231,3 +231,34 @@ jobs:
             ${{ runner.temp }}/scala-cli-jvm-composition-logs/driver.log
           if-no-files-found: error
           retention-days: 30
+
+  native-source-sdk:
+    name: Source Native SDK (aarch64-darwin)
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      NATIVE_SDK_SYSTEM: aarch64-darwin
+      NIX_CONFIG: |
+        sandbox = true
+        max-jobs = 2
+        cores = 2
+        eval-cache = false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+      - name: Build the source SDK and run the locked Native fixture
+        run: python3 tests/native-sdk-runtime.py "$RUNNER_TEMP/scala-cli-native-source-sdk"
+      - name: Retain Native SDK build and runtime receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scala-cli-native-source-sdk-aarch64-darwin
+          path: |
+            ${{ runner.temp }}/scala-cli-native-source-sdk/*.json
+            ${{ runner.temp }}/scala-cli-native-source-sdk/*.log
+            ${{ runner.temp }}/scala-cli-native-source-sdk/*.nix
+            ${{ runner.temp }}/scala-cli-native-source-sdk/project/*.scala
+          if-no-files-found: error
+          retention-days: 30
