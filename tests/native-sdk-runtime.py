@@ -168,10 +168,21 @@ package_expression = common.removesuffix("in ") + f'''
     localRepositories.maven = sdk + "/maven";
   }};
 in '''
+policy = build("network-policy", common + """pkgs.runCommand "native-sdk-network-policy" {
+  __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
+  nativeBuildInputs = [ pkgs.python3 ];
+} ''
+  python3 ${f.outPath + "/tests/local-networking.py"} > "$out" 2>&1
+'' """)
+report["networkPolicy"] = identify("network-policy", policy)
 package = build("pure-package", package_expression + "project.packages.native-sdk-fixture")
 tests = build("pure-tests", package_expression + "project.tests")
 report["package"] = identify("pure-package", package)
 report["tests"] = identify("pure-tests", tests)
+run("pure-package-rebuild", "nix", "build", "--impure", "--file",
+    results / "pure-package.nix", "--rebuild", "--print-build-logs",
+    "--out-link", results / "pure-package")
+
 assert run("native-executable", package / "bin/native-sdk-fixture") == "hello from Scala Native"
 test_log = (tests / "test.log").read_text()
 assert "Starting process " in test_log and "FrameworkAdapter" in test_log
