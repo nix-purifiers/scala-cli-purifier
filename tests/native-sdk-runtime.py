@@ -235,6 +235,19 @@ in pkgs.runCommand "native-sdk-ordinary" {{
   scala-cli test . --verbose 2>&1 | tee test.log
   scala-cli compile . --native-version 0.5.12 --verbose 2>&1 | tee explicit.log
   scala-cli compile . --native-version=0.5.12 --verbose 2>&1 | tee equals.log
+  scala-cli export --json -o request-unset .
+  scala-cli export --json -o request-same --native-version 0.5.12 .
+  scala-cli export --json -o request-other --native-version 0.5.11 .
+  mkdir "$TMPDIR/directive-same" "$TMPDIR/directive-other"
+  cp Hello.scala "$TMPDIR/directive-same/Hello.scala"
+  cp Hello.scala "$TMPDIR/directive-other/Hello.scala"
+  echo '//> using nativeVersion 0.5.12' >> "$TMPDIR/directive-same/Hello.scala"
+  echo '//> using nativeVersion 0.5.11' >> "$TMPDIR/directive-other/Hello.scala"
+  scala-cli export --json -o request-directive-same "$TMPDIR/directive-same"
+  scala-cli export --json -o request-directive-other "$TMPDIR/directive-other"
+  cp -R {competition}/https/repo1.maven.org/maven2 "$TMPDIR/caller-repository"
+  chmod -R u+w "$TMPDIR/caller-repository"
+  scala-cli compile . --repository "file://$TMPDIR/caller-repository" --verbose > caller.log 2>&1
   scala-cli run . > run.log
   grep -qxF 'hello from Scala Native' run.log
   scala-cli setup-ide .
@@ -251,12 +264,36 @@ in pkgs.runCommand "native-sdk-ordinary" {{
   Path("bsp.json").write_text(json.dumps(result, indent=2))
   BSP
   mkdir "$out"
-  cp compile.log test.log explicit.log equals.log run.log bsp.json "$out/"
+  cp compile.log test.log explicit.log equals.log caller.log run.log bsp.json "$out/"
+  for request in request-*; do
+    cp "$request/export.json" "$out/$request.json"
+  done
 '' '''
 ordinary = build("ordinary", ordinary_expression)
 report["ordinary"] = identify("ordinary", ordinary)
-for name in ("compile.log", "test.log", "explicit.log", "equals.log", "run.log", "bsp.json"):
+for name in ("compile.log", "test.log", "explicit.log", "equals.log", "caller.log", "run.log", "bsp.json"):
     shutil.copyfile(ordinary / name, results / ("ordinary-" + name))
+requests = {}
+for name, expected_version in (("unset", "0.5.12"), ("same", "0.5.12"),
+                               ("other", "0.5.11"), ("directive-same", "0.5.12"),
+                               ("directive-other", "0.5.11")):
+    data = json.loads((ordinary / ("request-" + name + ".json")).read_text())
+    assert data["scalaNativeVersion"] == expected_version
+    requests[name] = data["scalaNativeVersion"]
+    shutil.copyfile(ordinary / ("request-" + name + ".json"), results / ("request-" + name + ".json"))
+report["upstreamVersionRequests"] = requests
+caller_plugins = []
+for line in (ordinary / "caller.log").read_text().splitlines():
+    if line.startswith("Running ") and "dotty.tools.dotc.Main" in line:
+        arguments = shlex.split(line.removeprefix("Running "))
+        caller_plugins += [arg.removeprefix("-Xplugin:") for arg in arguments if arg.startswith("-Xplugin:")]
+assert caller_plugins and all("/caller-repository/" in path for path in caller_plugins)
+report["callerRepositoryCompilerPlugins"] = caller_plugins
+bsp_result = json.loads((ordinary / "bsp.json").read_text())
+plugin_options = [option for item in bsp_result["scalacOptions"]["items"]
+                  for option in item["options"] if option.startswith("-Xplugin:")]
+assert plugin_options and all(str(sdk) in option for option in plugin_options)
+report["editorSDKPlugins"] = plugin_options
 package = build("pure-package", package_expression + "project.packages.native-sdk-fixture")
 tests = build("pure-tests", package_expression + "project.tests")
 report["package"] = identify("pure-package", package)
