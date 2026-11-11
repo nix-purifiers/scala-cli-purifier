@@ -32,6 +32,7 @@ let
       schemaVersion = 1;
       inherit (manifest) distribution;
       publicationVersion = manifest.variant;
+      cliSourcePatchSha256 = builtins.hashFile "sha256" ./cli-source.patch;
       sourcePatchSha256 = builtins.hashFile "sha256" ./source.patch;
       inputManifestSha256 = builtins.hashFile "sha256" ./inputs.json;
       sourceRevisions = map (input: { inherit (input) revision url sha256; }) (
@@ -60,6 +61,7 @@ stdenvNoCC.mkDerivation {
   ];
   inherit inputManifest checkpoint;
   sourcePatch = ./source.patch;
+  cliSourcePatch = ./cli-source.patch;
   buildPhase = ''
     runHook preBuild
     export HOME="$TMPDIR/home"

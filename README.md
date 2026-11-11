@@ -57,7 +57,7 @@ made by every subsequent operation. Both scopes use the existing v1 lock format.
 The JVM scope provides the patched Native SDK through a Nix-built Maven
 repository. The distribution is compiled and published from the pinned
 upstream sources at their 0.5.12 coordinates. Its receipt records the
-distribution identifier, source revisions, patch and input-manifest hashes,
+distribution identifier, source revisions, core and CLI patch hashes, and input-manifest hash,
 and build-Java version. Initial realization fetches 986 hashed source and
 build inputs and compiles the SDK with Java 17. Subsequent uses can reuse
 that Nix output. The frontend and project compiler continue to use Java 21.

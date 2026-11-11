@@ -378,6 +378,15 @@ in
         python3 -B ${./test-jvm-sdk-transport.py} --sdk ${urlTransportSdk} -v
         touch "$out"
       '';
+  relock-comparator =
+    pkgs.runCommand "scala-cli-relock-comparator"
+      {
+        nativeBuildInputs = [ pkgs.python3 ];
+      }
+      ''
+        PYTHONPATH=${../pkgs/cli} python3 ${./test-relock-compare.py} ${./relock-compare.py} -v
+        touch "$out"
+      '';
   local-runs = runs "local-runs" local.packages.local [
     "FROM IVY2LOCAL!"
     "from m2local..."

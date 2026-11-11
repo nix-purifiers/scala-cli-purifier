@@ -26,6 +26,7 @@ finally:
     probe.close()
 PY
 (cd core && git apply --check "$sourcePatch" && git apply "$sourcePatch")
+(cd native-cli && git apply --check "$cliSourcePatch" && git apply "$cliSourcePatch")
 launcher_core="$build_root/input-maven/org/scala-sbt/sbt-launch/1.12.9/sbt-launch-1.12.9.jar"
 launcher_cli="$build_root/input-maven/org/scala-sbt/sbt-launch/1.11.6/sbt-launch-1.11.6.jar"
 run_sbt() {

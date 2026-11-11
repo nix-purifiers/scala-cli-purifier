@@ -1,0 +1,15 @@
+--- a/cli/src/main/scala/scala/scalanative/cli/ScalaNativeLd.scala
++++ b/cli/src/main/scala/scala/scalanative/cli/ScalaNativeLd.scala
+@@ -77,4 +77,4 @@
+         case Right(buildOptions) =>
+-          val build = Scope { implicit scope =>
+-            Build
++          Scope { implicit scope =>
++            val build = Build
+               .build(buildOptions.config)
+@@ -90,4 +90,4 @@
+               }
++            Await.result(build, Duration.Inf)
+           }
+-          Await.result(build, Duration.Inf)
+ 
