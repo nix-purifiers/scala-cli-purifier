@@ -17,7 +17,7 @@ import time
 import subprocess
 import sys
 import threading
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, unquote
 
 root = Path(__file__).resolve().parent.parent
 results = Path(sys.argv[1]).resolve()
@@ -136,12 +136,27 @@ repository = results / "approved-repository"
 repository.mkdir()
 approved_hashes = {}
 for path in approved:
-    relative = path.split("/maven2/", 1)[1]
+    relative = unquote(path.split("/maven2/", 1)[1])
     destination = repository / relative
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(downloads / path, destination)
     approved_hashes[relative] = "sha256-" + base64.b64encode(
         hashlib.sha256(destination.read_bytes()).digest()).decode()
+
+extra_metadata = build("extra-metadata", common + '''let
+  sdk = pkgs.callPackage (f.outPath + "/pkgs/native-sdk") { checkpoint = "sdk"; };
+  wanted = builtins.fromJSON (builtins.readFile (f.outPath + "/tests/native-sdk-external-metadata.json"));
+  inputs = pkgs.lib.zipListsWith (input: path: input // { storePath = path; }) sdk.manifest.inputs sdk.frozenInputs;
+in pkgs.linkFarm "native-sdk-reviewed-extra-metadata" (map (input: {
+  name = input.repositoryPath;
+  path = input.storePath;
+}) (builtins.filter (input: builtins.elem (input.repositoryPath or "") wanted) inputs))''')
+for relative in json.loads((snapshot / "tests/native-sdk-external-metadata.json").read_text()):
+    source = extra_metadata / relative
+    destination = repository / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, destination)
+    approved_hashes[relative] = "sha256-" + base64.b64encode(hashlib.sha256(source.read_bytes()).digest()).decode()
 
 project = results / "project"
 project.mkdir()
@@ -184,7 +199,7 @@ seen = set()
 for entry in lock["artifacts"]:
     url = urlsplit(entry["url"])
     assert f"{url.scheme}://{url.netloc}" == "https://repo1.maven.org"
-    relative = url.path.split("/maven2/", 1)[1]
+    relative = unquote(url.path.split("/maven2/", 1)[1])
     assert entry["hash"] == approved_hashes[relative]
     assert relative not in seen
     seen.add(relative)
@@ -245,8 +260,20 @@ in pkgs.runCommand "native-sdk-ordinary" {{
   echo '//> using nativeVersion 0.5.11' >> "$TMPDIR/directive-other/Hello.scala"
   scala-cli export --json -o request-directive-same "$TMPDIR/directive-same"
   scala-cli export --json -o request-directive-other "$TMPDIR/directive-other"
-  cp -R {competition}/https/repo1.maven.org/maven2 "$TMPDIR/caller-repository"
-  chmod -R u+w "$TMPDIR/caller-repository"
+  python3 - <<'CALLER'
+  import os
+  from pathlib import Path
+  import shutil
+  from urllib.parse import unquote
+  source = Path("{competition}")
+  target = Path(os.environ["TMPDIR"]) / "caller-repository"
+  for path in source.rglob("*"):
+      if path.is_file():
+          relative = unquote(str(path.relative_to(source)).split("/maven2/", 1)[1])
+          destination = target / relative
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(path, destination)
+  CALLER
   scala-cli compile . --repository "file://$TMPDIR/caller-repository" --verbose > caller.log 2>&1
   scala-cli run . > run.log
   grep -qxF 'hello from Scala Native' run.log
