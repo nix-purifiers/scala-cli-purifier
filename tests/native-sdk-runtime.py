@@ -254,11 +254,15 @@ in pkgs.runCommand "native-sdk-ordinary" {{
   scala-cli export --json -o request-unset .
   scala-cli export --json -o request-same --native-version 0.5.12 .
   scala-cli export --json -o request-other --native-version 0.5.11 .
-  mkdir "$TMPDIR/directive-same" "$TMPDIR/directive-other"
-  cp Hello.scala "$TMPDIR/directive-same/Hello.scala"
-  cp Hello.scala "$TMPDIR/directive-other/Hello.scala"
-  echo '//> using nativeVersion 0.5.12' >> "$TMPDIR/directive-same/Hello.scala"
-  echo '//> using nativeVersion 0.5.11' >> "$TMPDIR/directive-other/Hello.scala"
+  python3 - <<'DIRECTIVES'
+  import os
+  from pathlib import Path
+  source = Path("Hello.scala").read_text()
+  for label, version in (("same", "0.5.12"), ("other", "0.5.11")):
+      directory = Path(os.environ["TMPDIR"]) / ("directive-" + label)
+      directory.mkdir()
+      (directory / "Hello.scala").write_text("//> using nativeVersion " + version + "\\n" + source)
+  DIRECTIVES
   scala-cli export --json -o request-directive-same "$TMPDIR/directive-same"
   scala-cli export --json -o request-directive-other "$TMPDIR/directive-other"
   python3 - <<'CALLER'
