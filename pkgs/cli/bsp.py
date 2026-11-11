@@ -86,7 +86,7 @@ def editor_session(argv, cwd, root_uri, env=None, timeout=1800, log=None):
         server.notify("build/initialized")
         targets = [t["id"] for t in server.request("workspace/buildTargets", {})["targets"]]
         sources = server.request("buildTarget/dependencySources", {"targets": targets})
-        server.request("buildTarget/scalacOptions", {"targets": targets})
+        scalac = server.request("buildTarget/scalacOptions", {"targets": targets})
         server.request("buildTarget/javacOptions", {"targets": targets})
         compiled = server.request("buildTarget/compile", {"targets": targets})
         server.request("build/shutdown", None)
@@ -96,7 +96,8 @@ def editor_session(argv, cwd, root_uri, env=None, timeout=1800, log=None):
             for uri in item.get("sources", []):
                 parsed = urlsplit(uri)
                 paths.append(unquote(parsed.path) if parsed.scheme == "file" else uri)
-        return {"targets": targets, "dependencySources": paths, "compileStatus": compiled["statusCode"]}
+        return {"targets": targets, "dependencySources": paths, "compileStatus": compiled["statusCode"],
+                "scalacOptions": scalac}
     finally:
         timer.cancel()
         try:

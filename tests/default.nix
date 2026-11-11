@@ -16,7 +16,7 @@
   # The scala-cli-purifier command, whose build runs its unit tests.
   cli,
   # Raw initial frontend used by this test scope's executable receipt.
-  scala-cli ? pkgs.scala-cli,
+  scala-cli ? cli.initialScalaCli,
 }:
 let
   inherit (pkgs) lib;
@@ -43,16 +43,16 @@ let
   # a HEAD request that the offline mirror answers in the sandbox.
   url = build { src = ./fixtures/url; };
 
-  # Diagnostic only: preserve url-runs as the unmodified baseline. The
+  # Exercise the configured frontend with an explicit IPv4 property. The
   # leading -D is consumed by ScalaCli.setSystemProps before resolution;
   # this does not add a project JVM option or change the locked sources.
   urlIpv4Cli =
     (pkgs.writeShellScriptBin "scala-cli" ''
       exec ${pkgs.python3.interpreter} -B ${./url-cli-probe.py} \
-        ${lib.getExe' pkgs.scala-cli "scala-cli"} "$@"
+        ${lib.getExe' scala-cli "scala-cli"} "$@"
     '')
     // {
-      inherit (pkgs.scala-cli) version;
+      inherit (scala-cli) version;
     };
   urlIpv4 = (build.override { scala-cli = urlIpv4Cli; }) { src = ./fixtures/url; };
   urlIpv4Package = urlIpv4.packages.url.overrideAttrs (old: {

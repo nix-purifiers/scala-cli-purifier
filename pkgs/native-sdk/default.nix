@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Local, opt-in source build; not exported by either existing package scope.
+# Source-built Native distribution used by the JVM scope.
 {
   lib,
   stdenvNoCC,

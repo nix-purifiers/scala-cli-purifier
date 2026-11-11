@@ -105,6 +105,7 @@ sdk = build("sdk", common + 'pkgs.callPackage (f.outPath + "/pkgs/native-sdk") {
 publication = json.loads((sdk / "receipts/publication.json").read_text())
 variant = publication["variant"]
 shutil.copyfile(sdk / "receipts/publication.json", results / "publication.json")
+shutil.copyfile(sdk / "receipts/distribution.json", results / "distribution.json")
 report["nativeSDK"] = identify("sdk", sdk)
 cli = Path(run("cli", "nix", "build", f"path:{snapshot}#cli-jvm", "--print-out-paths",
                "--out-link", results / "cli").splitlines()[-1]) / "bin/scala-cli-purifier"
@@ -118,6 +119,15 @@ downloads = build("approved", common + f'''f.lib.purifier.tree {{
   name = "native-sdk-fixture-dependencies";
   entries = builtins.filter (e: builtins.elem e.path (builtins.fromJSON
     (builtins.readFile (f.outPath + "/tests/native-sdk-external-paths.json"))))
+    (f.lib.purifier.entriesFor "{system}" (f.lib.scala-cli-purifier.readLock {{
+      src = f.outPath + "/tests/fixtures/native";
+    }}));
+}}''')
+competition = build("official-cache-inputs", common + f'''f.lib.purifier.tree {{
+  inherit pkgs;
+  name = "native-sdk-official-cache-control";
+  entries = builtins.filter (e: !(builtins.elem e.path (builtins.fromJSON
+    (builtins.readFile (f.outPath + "/tests/native-sdk-external-paths.json")))))
     (f.lib.purifier.entriesFor "{system}" (f.lib.scala-cli-purifier.readLock {{
       src = f.outPath + "/tests/fixtures/native";
     }}));
@@ -152,12 +162,11 @@ with server:
     worker = threading.Thread(target=server.serve_forever, daemon=True)
     worker.start()
     endpoint = f"http://127.0.0.1:{server.server_port}"
-    environment = dict(os.environ, COURSIER_REPOSITORIES=endpoint,
+    environment = dict(os.environ, SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR=endpoint,
                        SCALA_CLI_PURIFIER_USER_HOME=str(home))
     try:
-        run("capture", cli, "lock", "--test", "--no-ide", "--name", "native-sdk-fixture",
-            "--", "--verbose", "--native-version", variant, "--repository", (sdk / "maven").as_uri(),
-            "--repository", endpoint, ".", cwd=project, env=environment)
+        run("capture", cli, "lock", "--test", "--name", "native-sdk-fixture",
+            "--", "--verbose", ".", cwd=project, env=environment)
     finally:
         server.shutdown()
         worker.join()
@@ -167,14 +176,15 @@ report["fixtureRepositoryStopped"] = endpoint
 lockfile = project / "scala-cli-purifier.lock.json"
 lock = json.loads(lockfile.read_text())
 assert lock["version"] == 1
+assert not lock.get("localRepositories"), "provided SDK entered ordinary dependency snapshots"
 shutil.copyfile(lockfile, results / lockfile.name)
 seed = results / "seed"
 seed.mkdir()
 seen = set()
 for entry in lock["artifacts"]:
     url = urlsplit(entry["url"])
-    assert f"{url.scheme}://{url.netloc}" == endpoint
-    relative = url.path.lstrip("/")
+    assert f"{url.scheme}://{url.netloc}" == "https://repo1.maven.org"
+    relative = url.path.split("/maven2/", 1)[1]
     assert entry["hash"] == approved_hashes[relative]
     assert relative not in seen
     seen.add(relative)
@@ -182,16 +192,15 @@ for entry in lock["artifacts"]:
     target = seed / source.name
     shutil.copyfile(source, target)
     run("seed-" + str(len(seen)), "nix-store", "--add-fixed", "sha256", target)
-assert seen == approved_hashes.keys()
+assert seen <= approved_hashes.keys()
+report["ordinaryDependencyFiles"] = len(seen)
 shutil.rmtree(repository)
 shutil.rmtree(seed)
 run("prefetch", cli, "prefetch", cwd=project)
 project_store = run("retain-project", "nix", "store", "add-path", project).splitlines()[-1]
 package_expression = common.removesuffix("in ") + f'''
-  sdk = builtins.storePath "{sdk}";
   project = pkgs.scala-cli-purifier-jvm.buildScalaCliProject {{
     src = builtins.storePath "{project_store}";
-    localRepositories.maven = sdk + "/maven";
   }};
 in '''
 policy = build("network-policy", common + """pkgs.runCommand "native-sdk-network-policy" {
@@ -201,6 +210,53 @@ policy = build("network-policy", common + """pkgs.runCommand "native-sdk-network
   python3 ${f.outPath + "/tests/local-networking.py"} > "$out" 2>&1
 '' """)
 report["networkPolicy"] = identify("network-policy", policy)
+ordinary_expression = common.removesuffix("in ") + f'''
+  project = builtins.storePath "{project_store}";
+  downloads = f.lib.purifier.tree {{
+    inherit pkgs;
+    name = "native-sdk-fresh-downloads";
+    entries = f.lib.purifier.entriesFor "{system}" (f.lib.scala-cli-purifier.readLock {{ src = project; }});
+  }};
+in pkgs.runCommand "native-sdk-ordinary" {{
+  __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
+  nativeBuildInputs = [ f.packages.{system}.cli-jvm pkgs.python3 ];
+  inherit downloads;
+}} ''
+  export HOME=$TMPDIR/home
+  mkdir -p "$HOME"
+  export SCALA_CLI_HOME=$HOME/.scala-cli SCALA_CLI_PURIFIER_USER_HOME=$HOME
+  export JAVA_TOOL_OPTIONS=-Duser.home=$HOME
+  cp -R ${{project}} project
+  chmod -R u+w project
+  cd project
+  scala-cli compile . --verbose 2>&1 | tee compile.log
+  cp -rs --no-preserve=mode {competition}/. .scala-cli-purifier/coursier-cache/
+  test -n "$(find .scala-cli-purifier/coursier-cache -path '*/org/scala-native/*/0.5.12/*.jar' -print -quit)"
+  scala-cli test . --verbose 2>&1 | tee test.log
+  scala-cli compile . --native-version 0.5.12 --verbose 2>&1 | tee explicit.log
+  scala-cli compile . --native-version=0.5.12 --verbose 2>&1 | tee equals.log
+  scala-cli run . > run.log
+  grep -qxF 'hello from Scala Native' run.log
+  scala-cli setup-ide .
+  PYTHONPATH=${{f.outPath + "/pkgs/cli"}} python3 - <<'BSP'
+  import json
+  from pathlib import Path
+  import bsp
+  project = Path.cwd()
+  config = json.loads((project / ".bsp/scala-cli.json").read_text())
+  result = bsp.editor_session(config["argv"], project, project.as_uri())
+  assert result["compileStatus"] == 1
+  assert result["dependencySources"]
+  assert all(Path(p).is_file() for p in result["dependencySources"])
+  Path("bsp.json").write_text(json.dumps(result, indent=2))
+  BSP
+  mkdir "$out"
+  cp compile.log test.log explicit.log equals.log run.log bsp.json "$out/"
+'' '''
+ordinary = build("ordinary", ordinary_expression)
+report["ordinary"] = identify("ordinary", ordinary)
+for name in ("compile.log", "test.log", "explicit.log", "equals.log", "run.log", "bsp.json"):
+    shutil.copyfile(ordinary / name, results / ("ordinary-" + name))
 package = build("pure-package", package_expression + "project.packages.native-sdk-fixture")
 tests = build("pure-tests", package_expression + "project.tests")
 report["package"] = identify("pure-package", package)
@@ -215,14 +271,15 @@ assert "Starting process " in test_log and "FrameworkAdapter" in test_log
 assert "+ greeting names Scala Native" in re.sub(r"\x1b\[[0-9;]*m", "", test_log)
 shutil.copyfile(tests / "test.log", results / "native-test.log")
 sdk_artifacts = {row["artifact"]: row for row in publication["artifacts"]}
-locked_sdk = {row["path"]: row["hash"] for repo in lock["localRepositories"]
+locked_sdk = {row["path"]: row["hash"] for repo in lock.get("localRepositories", [])
               if repo["name"] == "maven" for row in repo["files"]}
 selected = set()
 classpaths = []
-for phase in ("pure-package", "pure-tests"):
+for phase in ("pure-package", "pure-tests", "ordinary"):
     log = results / (phase + ".log")
-    prefix = ("native-sdk-fixture-tests-locked> " if phase == "pure-tests"
-              else "native-sdk-fixture-locked> ")
+    prefix = {"pure-tests": "native-sdk-fixture-tests-locked> ",
+              "pure-package": "native-sdk-fixture-locked> ",
+              "ordinary": "native-sdk-ordinary> "}[phase]
     for line_number, line in enumerate(log.read_text().splitlines(), 1):
         if not line.startswith(prefix + "Running "):
             continue

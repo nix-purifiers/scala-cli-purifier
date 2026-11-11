@@ -115,9 +115,16 @@ stdenvNoCC.mkDerivation {
       --set SCALA_CLI_PURIFIER_NIXPKGS ${path}
       --set SCALA_CLI_PURIFIER_PURIFIER ${purifierSource}
       --set SCALA_CLI_PURIFIER_WRAPPER "$out/bin/scala-cli"
-      ${lib.optionalString (native-sdk != null) ''
-        --set SCALA_CLI_PURIFIER_NATIVE_SDK_PACKAGE ${native-sdk}
-      ''}
+      ${
+        if native-sdk != null then
+          ''
+            --set SCALA_CLI_PURIFIER_NATIVE_SDK_PACKAGE ${native-sdk}
+          ''
+        else
+          ''
+            --unset SCALA_CLI_PURIFIER_NATIVE_SDK_PACKAGE
+          ''
+      }
     )
     makeWrapper ${python3.interpreter} "$out/bin/scala-cli-purifier" "''${wrapperArgs[@]}"
     # The same program as `scala-cli`: in a project with a lockfile it runs

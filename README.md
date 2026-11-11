@@ -32,9 +32,11 @@ error and runs the ordinary tool with impure resolution.
 
 For persistent use, add these packages through your usual Nix configuration.
 
-## Optional JVM frontend
+## Frontend and Native SDK
 
-Select the official JVM build of the same Scala CLI version explicitly:
+Darwin uses the official JVM frontend for Scala CLI 1.18.0 and a source-built
+Scala Native 0.5.12 distribution. Linux keeps its native frontend by default.
+Select the JVM scope explicitly on either platform:
 
 ```zsh
 nix shell 'github:nix-purifiers/scala-cli-purifier#cli-jvm'
@@ -50,8 +52,25 @@ Scala CLI jar. It preserves ordinary arguments and environment variables,
 including upstream project-JDK selection and version relaunch behavior.
 On Darwin it requests IPv4 at JVM startup. The `jvm-sdk` package's manifest
 describes that initial frontend, rather than guaranteeing the selection
-made by every subsequent operation. Existing default packages keep the
-native frontend, and both scopes use the existing v1 lock format.
+made by every subsequent operation. Both scopes use the existing v1 lock format.
+
+The JVM scope provides the patched Native SDK through a Nix-built Maven
+repository. The distribution is compiled and published from the pinned
+upstream sources at their 0.5.12 coordinates. Its receipt records the
+distribution identifier, source revisions, patch and input-manifest hashes,
+and build-Java version. Initial realization fetches 986 hashed source and
+build inputs and compiles the SDK with Java 17. Subsequent uses can reuse
+that Nix output. The frontend and project compiler continue to use Java 21.
+
+Scala CLI handles Native version flags and source directives. Caller-supplied
+repositories keep precedence. The provided SDK repository precedes Maven
+Central when the caller has selected no repositories. Capture excludes this
+exact provided repository from ordinary download and local-repository snapshots.
+The pure build retains its complete Nix input and distribution identity.
+
+The original native frontend is available as `#cli-native` and through
+`pkgs.scala-cli-purifier-native`. A scope override setting `native-sdk = null`
+uses ordinary upstream Native dependency resolution.
 
 For optional sandbox builds, use the matching named package scope:
 

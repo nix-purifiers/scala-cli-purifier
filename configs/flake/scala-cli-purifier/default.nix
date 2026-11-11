@@ -31,6 +31,7 @@
     {
       packages.default = self'.packages.cli;
       packages.cli-jvm = pkgs.scala-cli-purifier-jvm.cli;
+      packages.cli-native = pkgs.scala-cli-purifier-native.cli;
       devShells.default = pkgs.mkShell {
         packages = [
           self'.packages.cli
