@@ -12,6 +12,8 @@ import re
 import shutil
 import shlex
 import socket
+import signal
+import time
 import subprocess
 import sys
 import threading
@@ -21,6 +23,7 @@ root = Path(__file__).resolve().parent.parent
 results = Path(sys.argv[1]).resolve()
 results.mkdir(parents=True)
 report = {"commands": [], "complete": False}
+deadline = time.monotonic() + 9000
 
 
 def save():
@@ -37,11 +40,28 @@ def run(name, *args, cwd=root, env=None):
     save()
     path = results / entry["log"]
     with path.open("w") as log:
-        process = subprocess.run(command, cwd=cwd, env=env, stdout=log,
-                                 stderr=subprocess.STDOUT, timeout=7200)
-    entry["returncode"] = process.returncode
-    save()
-    process.check_returncode()
+        budget = 5400 if name == "sdk" else 1200
+        budget = min(budget, deadline - time.monotonic())
+        if budget <= 0:
+            raise TimeoutError("Native SDK evidence deadline reached")
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=log,
+                                   stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            process.wait(timeout=budget)
+        except subprocess.TimeoutExpired:
+            entry["timedOut"] = True
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+        entry["returncode"] = process.returncode
+        save()
+    if entry.get("timedOut"):
+        raise TimeoutError(f"{name} exceeded its execution budget")
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, command)
     return path.read_text().strip()
 
 
@@ -225,7 +245,8 @@ for phase in ("pure-package", "pure-tests"):
                 assert locked_sdk[relative] == "sha256-" + base64.b64encode(digest).decode()
             selected.add(row["module"])
             chosen.append({"index": index, "path": path, "coordinate": [
-                "org.scala-native", row["module"], row["version"]], "sha256": digest.hex()})
+                "org.scala-native", row["module"], row["version"]], "canonicalSDKHash": digest.hex(),
+                           "binding": "logged selection joined to immutable SDK or verified staged lock entry"})
         classpaths.append({"phase": phase, "line": line_number, "arguments": arguments,
                            "selectedNativeArtifacts": chosen})
 expected = {
