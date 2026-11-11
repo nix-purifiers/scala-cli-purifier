@@ -39,13 +39,14 @@ def run(name, *args, cwd=root, env=None):
     report["commands"].append(entry)
     save()
     path = results / entry["log"]
-    with path.open("w") as log:
+    stdout_path = results / (name + ".stdout.log")
+    with path.open("w") as log, stdout_path.open("w") as stdout:
         budget = 5400 if name == "sdk" else 1200
         budget = min(budget, deadline - time.monotonic())
         if budget <= 0:
             raise TimeoutError("Native SDK evidence deadline reached")
-        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=log,
-                                   stderr=subprocess.STDOUT, start_new_session=True)
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=stdout,
+                                   stderr=log, start_new_session=True)
         try:
             process.wait(timeout=budget)
         except subprocess.TimeoutExpired:
@@ -56,13 +57,18 @@ def run(name, *args, cwd=root, env=None):
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait()
+            # The group can contain descendants after the direct child exits.
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         entry["returncode"] = process.returncode
         save()
     if entry.get("timedOut"):
         raise TimeoutError(f"{name} exceeded its execution budget")
     if process.returncode:
         raise subprocess.CalledProcessError(process.returncode, command)
-    return path.read_text().strip()
+    return stdout_path.read_text().strip()
 
 
 def build(name, expression):
