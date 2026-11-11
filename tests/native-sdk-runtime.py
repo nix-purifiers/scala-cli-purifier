@@ -229,7 +229,7 @@ ordinary_expression = common.removesuffix("in ") + f'''
   project = builtins.storePath "{project_store}";
   downloads = f.lib.purifier.tree {{
     inherit pkgs;
-    name = "native-sdk-fresh-downloads";
+    name = "scala-cli-purifier-downloads";
     entries = f.lib.purifier.entriesFor "{system}" (f.lib.scala-cli-purifier.readLock {{ src = project; }});
   }};
 in pkgs.runCommand "native-sdk-ordinary" {{
