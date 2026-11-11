@@ -46,7 +46,7 @@
 -      }
 +      // Each Scope closes what it acquires. Open a private filesystem rather
 +      // than sharing a URI-registered filesystem with another Scope.
-+      acquire(FileSystems.newFileSystem(path, java.util.Collections.emptyMap[String, String]()))
++      acquire(FileSystems.newFileSystem(path, null: ClassLoader))
  
      override def pathMatcher(pattern: String): PathMatcher =
        fileSystem.getPathMatcher(pattern)
