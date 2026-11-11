@@ -72,3 +72,36 @@
    def ty: nir.Type.Ref = nir.Type.Ref(name)
    val members = mutable.UnrolledBuffer.empty[MemberInfo]
    val calls = mutable.Set.empty[nir.Sig]
+--- a/nscplugin/src/main/scala-2/scala/scalanative/nscplugin/NirGenStat.scala
++++ b/nscplugin/src/main/scala-2/scala/scalanative/nscplugin/NirGenStat.scala
+@@ -56,7 +56,7 @@
+   }
+ 
+   class CollectMethodInfo extends Traverser {
+-    var mutableVars = Set.empty[Symbol]
++    var mutableVars: Set[Symbol] = scala.collection.immutable.ListSet.empty[Symbol]
+     var labels = Set.empty[LabelDef]
+ 
+     override def traverse(tree: Tree) = {
+--- a/nscplugin/src/main/scala-3/scala/scalanative/nscplugin/NirCodeGen.scala
++++ b/nscplugin/src/main/scala-3/scala/scalanative/nscplugin/NirCodeGen.scala
+@@ -210,7 +210,7 @@
+   }
+ 
+   class CollectMethodInfo extends TreeTraverser {
+-    var mutableVars = Set.empty[Symbol]
++    var mutableVars: Set[Symbol] = scala.collection.immutable.ListSet.empty[Symbol]
+     var labels = Set.empty[Labeled]
+ 
+     override def traverse(tree: Tree)(using Context): Unit = {
+--- a/nir/src/main/scala/scala/scalanative/nir/serialization/BinarySerializer.scala
++++ b/nir/src/main/scala/scala/scalanative/nir/serialization/BinarySerializer.scala
+@@ -15,7 +15,7 @@
+ final class BinarySerializer(channel: WritableByteChannel) {
+   def serialize(defns: Seq[Defn]) = {
+     // Write to in-memory buffers
+-    for (defn <- defns) {
++    for (defn <- defns.sortBy(_.name.mangle)) {
+       val offset = Defns.position()
+       Defns.put(defn)
+       Offsets.put(defn.name, offset)
