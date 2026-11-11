@@ -278,7 +278,11 @@ in pkgs.runCommand "native-sdk-ordinary" {{
           destination = target / relative
           destination.parent.mkdir(parents=True, exist_ok=True)
           shutil.copyfile(path, destination)
+  request = Path(os.environ["TMPDIR"]) / "caller-directive"
+  request.mkdir()
+  (request / "Hello.scala").write_text("//> using repository " + target.as_uri() + "\\n" + Path("Hello.scala").read_text())
   CALLER
+  scala-cli compile "$TMPDIR/caller-directive" --verbose > caller-directive.log 2>&1
   scala-cli compile . --repository "file://$TMPDIR/caller-repository" --verbose > caller.log 2>&1
   scala-cli run . > run.log
   grep -qxF 'hello from Scala Native' run.log
@@ -296,14 +300,14 @@ in pkgs.runCommand "native-sdk-ordinary" {{
   Path("bsp.json").write_text(json.dumps(result, indent=2))
   BSP
   mkdir "$out"
-  cp compile.log test.log explicit.log equals.log caller.log run.log bsp.json "$out/"
+  cp compile.log test.log explicit.log equals.log caller.log caller-directive.log run.log bsp.json "$out/"
   for request in request-*; do
     cp "$request/export.json" "$out/$request.json"
   done
 '' '''
 ordinary = build("ordinary", ordinary_expression)
 report["ordinary"] = identify("ordinary", ordinary)
-for name in ("compile.log", "test.log", "explicit.log", "equals.log", "caller.log", "run.log", "bsp.json"):
+for name in ("compile.log", "test.log", "explicit.log", "equals.log", "caller.log", "caller-directive.log", "run.log", "bsp.json"):
     shutil.copyfile(ordinary / name, results / ("ordinary-" + name))
 requests = {}
 for name, expected_version in (("unset", "0.5.12"), ("same", "0.5.12"),
@@ -314,12 +318,15 @@ for name, expected_version in (("unset", "0.5.12"), ("same", "0.5.12"),
     requests[name] = data["scalaNativeVersion"]
     shutil.copyfile(ordinary / ("request-" + name + ".json"), results / ("request-" + name + ".json"))
 report["upstreamVersionRequests"] = requests
-caller_plugins = []
-for line in (ordinary / "caller.log").read_text().splitlines():
-    if line.startswith("Running ") and "dotty.tools.dotc.Main" in line:
-        arguments = shlex.split(line.removeprefix("Running "))
-        caller_plugins += [arg.removeprefix("-Xplugin:") for arg in arguments if arg.startswith("-Xplugin:")]
-assert caller_plugins and all("/caller-repository/" in path for path in caller_plugins)
+caller_plugins = {}
+for case in ("caller", "caller-directive"):
+    plugins = []
+    for line in (ordinary / (case + ".log")).read_text().splitlines():
+        if line.startswith("Running ") and "dotty.tools.dotc.Main" in line:
+            arguments = shlex.split(line.removeprefix("Running "))
+            plugins += [arg.removeprefix("-Xplugin:") for arg in arguments if arg.startswith("-Xplugin:")]
+    assert plugins and all("/caller-repository/" in path for path in plugins)
+    caller_plugins[case] = plugins
 report["callerRepositoryCompilerPlugins"] = caller_plugins
 bsp_result = json.loads((ordinary / "bsp.json").read_text())
 plugin_options = [option for item in bsp_result["scalacOptions"]["items"]
@@ -356,7 +363,7 @@ for phase in ("pure-package", "pure-tests", "ordinary"):
         if "dotty.tools.dotc.Main" not in arguments and not any(
                 "scala-native-cli_2.12" in argument for argument in arguments):
             continue
-        assert "/openjdk/bin/java" in arguments[0] or arguments[0].endswith("/bin/java")
+        assert Path(arguments[0]).resolve() == Path(report["initialFrontend"]["javaExecutable"]).resolve()
         paths = []
         for index, argument in enumerate(arguments):
             if argument in ("-cp", "-classpath", "--classpath"):
