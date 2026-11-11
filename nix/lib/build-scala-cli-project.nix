@@ -62,6 +62,7 @@
   # The scala-cli the lock was made with. scala-cli downloads tools of its
   # own version, so another version would ask for files the lock lacks.
   scala-cli,
+  native-sdk ? null,
 }:
 {
   # The root of the scala-cli project.
@@ -262,6 +263,13 @@ let
     export COURSIER_CACHE="$TMPDIR/coursier-cache"
     export COURSIER_ARCHIVE_CACHE="$TMPDIR/coursier-archive-cache"
     export COURSIER_MODE=offline
+    ${lib.optionalString (platform == "Native" && native-sdk != null) ''
+      if [ -n "''${COURSIER_REPOSITORIES:-}" ]; then
+        export COURSIER_REPOSITORIES="$COURSIER_REPOSITORIES|file://${native-sdk}/maven"
+      else
+        export COURSIER_REPOSITORIES="file://${native-sdk}/maven|https://repo1.maven.org/maven2"
+      fi
+    ''}
     mkdir -p "$HOME" "$COURSIER_CACHE" "$TMPDIR/java-tmp" "$TMPDIR/out" "$TMPDIR/mirror"
     # Coursier writes lock and marker files next to what it reads, so the
     # cache is a writable tree of links into the store.

@@ -27,6 +27,19 @@ let
       };
     }
   ) manifest.inputs;
+  distributionReceipt = writeText "scala-native-distribution.json" (
+    builtins.toJSON {
+      schemaVersion = 1;
+      inherit (manifest) distribution;
+      publicationVersion = manifest.variant;
+      sourcePatchSha256 = builtins.hashFile "sha256" ./source.patch;
+      inputManifestSha256 = builtins.hashFile "sha256" ./inputs.json;
+      sourceRevisions = map (input: { inherit (input) revision url sha256; }) (
+        builtins.filter (input: input.kind == "source") manifest.inputs
+      );
+      buildJavaVersion = jdk17_headless.version;
+    }
+  );
   inputManifest = writeText "scala-native-frozen-inputs.json" (
     builtins.toJSON (manifest // { inherit inputs; })
   );
@@ -37,7 +50,7 @@ assert lib.assertMsg (builtins.elem checkpoint [
 ]) "unknown Native SDK checkpoint";
 stdenvNoCC.mkDerivation {
   pname = "scala-native-source-${checkpoint}";
-  version = manifest.variant;
+  version = "${manifest.variant}-${manifest.distribution.id}";
   dontUnpack = true;
   nativeBuildInputs = [
     jdk17_headless
@@ -62,6 +75,7 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$out"
     mkdir -p "$out/receipts"
     cp receipts/verified-inputs.json "$out/receipts/"
+    cp ${distributionReceipt} "$out/receipts/distribution.json"
     # Transient SBT logs stay in the captured Nix build log, never in a
     # reproducible output. The checkpoint marker has no timing/scratch paths.
     printf '%s\n' "$checkpoint" > "$out/receipts/checkpoint"

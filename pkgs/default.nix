@@ -6,6 +6,9 @@
 # takes.
 { callPackage, lib, ... }:
 {
+  # An optional source-built Native backend supplied by the Nix scope.
+  native-sdk = null;
+
   # Initial official JVM frontend; project compiler selection stays upstream.
   jvm-sdk = callPackage ./jvm-sdk { };
 

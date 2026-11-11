@@ -16,11 +16,13 @@
   lockFile,
   scalaCliPath ? null,
   scalaCliVersion ? null,
+  nativeSdkPath ? null,
 }:
 let
   pkgs = import nixpkgs { };
   buildScalaCliProject = pkgs.callPackage ./build-scala-cli-project.nix {
     purifier = import purifierSource { inherit (pkgs) lib; };
+    native-sdk = if nativeSdkPath == null then null else builtins.storePath nativeSdkPath;
     # The command already depends on this realized package. Preserve its
     # store dependency and version instead of selecting Nixpkgs' default
     # frontend again when a named scope publishes a project.

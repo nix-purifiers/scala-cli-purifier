@@ -77,6 +77,25 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("--js-cli-on-jvm", scp.common_options("/jdk", "JS", offline=True))
         self.assertNotIn("--js-cli-on-jvm", scp.common_options("/jdk", "JVM", offline=True))
 
+    def test_native_sdk_keeps_version_selection_and_caller_repository_order(self):
+        configured = {"SCALA_CLI_PURIFIER_NATIVE_SDK_PACKAGE": "/nix/store/sdk"}
+        with mock.patch.dict(os.environ, configured):
+            options = scp.common_options("/jdk", "Native", offline=True)
+            self.assertNotIn("--native-version", options)
+            self.assertNotIn("--repository", options)
+            caller = {"COURSIER_REPOSITORIES": "https://company.example/maven"}
+            scp.configure_native_sdk(caller, "Native")
+            self.assertEqual(caller["COURSIER_REPOSITORIES"],
+                             "https://company.example/maven|file:///nix/store/sdk/maven")
+            default = {}
+            scp.configure_native_sdk(default, "Native")
+            self.assertEqual(default["COURSIER_REPOSITORIES"],
+                             "file:///nix/store/sdk/maven|https://repo1.maven.org/maven2")
+            for platform in ("JVM", "JS"):
+                other = {}
+                scp.configure_native_sdk(other, platform)
+                self.assertEqual(other, {})
+
     def test_published_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             version = Path(tmp, "org/example/lib_3/1.0.0")

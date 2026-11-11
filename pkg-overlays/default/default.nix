@@ -16,13 +16,18 @@ in
     final: prev:
     let
       native = nativeOverlay final prev;
+      base = native.scala-cli-purifier;
+      jvm = base.overrideScope (
+        _: previous: {
+          scala-cli = previous.jvm-sdk;
+          native-sdk = final.callPackage ../../pkgs/native-sdk { checkpoint = "sdk"; };
+        }
+      );
     in
     native
     // {
-      scala-cli-purifier-jvm = native.scala-cli-purifier.overrideScope (
-        _: _: {
-          scala-cli = final.scala-cli-purifier.jvm-sdk;
-        }
-      );
+      scala-cli-purifier-native = base;
+      scala-cli-purifier-jvm = jvm;
+      scala-cli-purifier = if final.stdenv.buildPlatform.isDarwin then jvm else base;
     };
 }

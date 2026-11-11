@@ -17,6 +17,7 @@
   python3,
   gnupg,
   scala-cli,
+  native-sdk ? null,
   jdk21_headless,
   nodejs,
   clang,
@@ -51,6 +52,7 @@ stdenvNoCC.mkDerivation {
     inherit librarySource;
     initialScalaCli = scala-cli;
     configuredJava = jdk21_headless;
+    configuredNativeSDK = native-sdk;
   };
 
   src = lib.fileset.toSource {
@@ -113,6 +115,9 @@ stdenvNoCC.mkDerivation {
       --set SCALA_CLI_PURIFIER_NIXPKGS ${path}
       --set SCALA_CLI_PURIFIER_PURIFIER ${purifierSource}
       --set SCALA_CLI_PURIFIER_WRAPPER "$out/bin/scala-cli"
+      ${lib.optionalString (native-sdk != null) ''
+        --set SCALA_CLI_PURIFIER_NATIVE_SDK_PACKAGE ${native-sdk}
+      ''}
     )
     makeWrapper ${python3.interpreter} "$out/bin/scala-cli-purifier" "''${wrapperArgs[@]}"
     # The same program as `scala-cli`: in a project with a lockfile it runs

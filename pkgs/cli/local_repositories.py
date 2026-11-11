@@ -66,7 +66,7 @@ def parse_resolver(resolver):
     return layout, root, pattern
 
 
-def roots(resolvers, home, internal):
+def roots(resolvers, home, internal, provided=()):
     """The local repositories among `resolvers`, as dicts with `name`,
     `layout`, `root` and `pattern`. ivy2Local and m2Local of `home` get
     those names; any other repository is named for its directory. A
@@ -74,6 +74,7 @@ def roots(resolvers, home, internal):
     left out. Both are resolved, as the resolvers' roots are: on macOS
     /tmp and /var are links into /private."""
     home, internal = Path(home).resolve(), Path(internal).resolve()
+    provided = {Path(root).resolve() for root in provided}
     found = []
     names = set()
     for resolver in resolvers:
@@ -81,7 +82,7 @@ def roots(resolvers, home, internal):
         if parsed is None:
             continue
         layout, root, pattern = parsed
-        if root.is_relative_to(internal):
+        if root.is_relative_to(internal) or root in provided:
             continue
         if root == home / ".ivy2" / "local":
             name = "ivy2Local"
