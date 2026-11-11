@@ -62,8 +62,8 @@ and build-Java version. Initial realization fetches 986 hashed source and
 build inputs and compiles the SDK with Java 17. Subsequent uses can reuse
 that Nix output. The frontend and project compiler continue to use Java 21.
 
-Scala CLI handles Native version flags and source directives. Caller-supplied
-repositories keep precedence. The provided SDK repository precedes Maven
+Scala CLI handles Native version flags and source directives. Repository
+directives and `--repository` flags keep precedence. The provided SDK repository precedes Maven
 Central when the caller has selected no repositories. Capture excludes this
 exact provided repository from ordinary download and local-repository snapshots.
 The pure build retains its complete Nix input and distribution identity.

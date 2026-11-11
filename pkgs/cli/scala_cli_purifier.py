@@ -131,8 +131,6 @@ def isolated_env(work, cache, offline):
         COURSIER_CACHE=str(cache),
         COURSIER_ARCHIVE_CACHE=str(work / "archive-cache"),
     )
-    if "COURSIER_REPOSITORIES" in os.environ:
-        e["COURSIER_REPOSITORIES"] = os.environ["COURSIER_REPOSITORIES"]
     e.pop("SCALA_CLI_HOME", None)
     if sys.platform == "darwin":
         e.update(SCALA_CLI_HOME=str(scala_cli_home), COURSIER_CONFIG_DIR=str(home / ".config/coursier"))

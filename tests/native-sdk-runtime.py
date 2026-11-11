@@ -226,6 +226,7 @@ policy = build("network-policy", common + """pkgs.runCommand "native-sdk-network
 '' """)
 report["networkPolicy"] = identify("network-policy", policy)
 ordinary_expression = common.removesuffix("in ") + f'''
+  official = builtins.storePath "{competition}";
   project = builtins.storePath "{project_store}";
   downloads = f.lib.purifier.tree {{
     inherit pkgs;
@@ -245,7 +246,7 @@ in pkgs.runCommand "native-sdk-ordinary" {{
   chmod -R u+w project
   cd project
   scala-cli compile . --verbose 2>&1 | tee compile.log
-  cp -rs --no-preserve=mode {competition}/. .scala-cli-purifier/coursier-cache/
+  cp -rs --no-preserve=mode ${{official}}/. .scala-cli-purifier/coursier-cache/
   test -n "$(find .scala-cli-purifier/coursier-cache -path '*/org/scala-native/*/0.5.12/*.jar' -print -quit)"
   scala-cli test . --verbose 2>&1 | tee test.log
   scala-cli compile . --native-version 0.5.12 --verbose 2>&1 | tee explicit.log
@@ -265,7 +266,7 @@ in pkgs.runCommand "native-sdk-ordinary" {{
   from pathlib import Path
   import shutil
   from urllib.parse import unquote
-  source = Path("{competition}")
+  source = Path("${{official}}")
   target = Path(os.environ["TMPDIR"]) / "caller-repository"
   for path in source.rglob("*"):
       if path.is_file():
