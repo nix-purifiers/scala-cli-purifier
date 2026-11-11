@@ -40,6 +40,7 @@ run_sbt() {
     cd "$build_root/$source_dir"
     timeout --signal=TERM --kill-after=30s "$budget" java -Xmx3G -XX:ActiveProcessorCount=2 \
       -Dsbt.override.build.repos=true -Dsbt.repository.config="$build_root/repositories" \
+      -Duser.home="$HOME" \
       -Dsbt.ivy.home="$HOME/ivy" -Dsbt.global.base="$HOME/sbt-global" \
       -Dsbt.boot.directory="$HOME/sbt-boot" -Dsbt.coursier.home="$COURSIER_CACHE" \
       -Dsbt.offline=true -Dsbt.server.autostart=false -Dsbt.supershell=false \
