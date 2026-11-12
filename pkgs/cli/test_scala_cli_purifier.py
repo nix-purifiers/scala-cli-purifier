@@ -130,11 +130,11 @@ class ProjectRuntimeTests(unittest.TestCase):
                     if arguments[0] == "--":
                         self.assertEqual(actual, arguments)
                     else:
-                        # The original prefix and inputs survive; the build
-                        # still receives mandatory offline/power options.
+                        # Scala CLI requires the command first. The SDK
+                        # tokens and inputs survive that normalization.
                         command_index = arguments.index("run")
                         index = actual.index("run")
-                        self.assertEqual(actual[index - command_index:index], arguments[:command_index])
+                        self.assertEqual(actual[index + 1:index + 1 + command_index], arguments[:command_index])
                         self.assertEqual(actual[-1], ".")
                         self.assertIn("--offline", actual)
                         self.assertIn("--power", actual)

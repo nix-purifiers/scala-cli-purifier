@@ -1022,9 +1022,9 @@ def scala_cli_wrapper(args):
     cache = prefetched_cache(lockfile_path, locked)
     environment = dict(os.environ, COURSIER_CACHE=str(cache), COURSIER_MODE="offline")
     configure_native_sdk(environment, locked.get("platform", "JVM"))
-    # A leading project-JVM selector is also a supported upstream shape.
-    # Keep its tokens, but locate the build command so it still gets the
-    # wrapper's offline/mirror options. Do not scan past -- into app args.
+    # Locate a build command after a project-JVM selector, then put the
+    # command first as Scala CLI requires. Keep the SDK tokens and inputs,
+    # with the wrapper's offline/mirror options. Never scan past --.
     command_index = 0
     while command_index < len(args):
         option = args[command_index]
@@ -1047,8 +1047,8 @@ def scala_cli_wrapper(args):
             argv = [
                 scala_cli,
                 *java_properties(work, mirror_options, home_override()),
-                *args[:command_index],
                 command,
+                *args[:command_index],
                 *common_options(java_home, locked.get("platform", "JVM"), offline=True, arguments=args),
                 *args[command_index + 1:],
             ]
