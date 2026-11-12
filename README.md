@@ -62,6 +62,14 @@ and build-Java version. Initial realization fetches 986 hashed source and
 build inputs and compiles the SDK with Java 17. Subsequent uses can reuse
 that Nix output. The frontend and project compiler continue to use Java 21.
 
+The complete source-built SDK is not byte reproducible. Independent Linux
+and Darwin builds produced identical Native NIR entries, but two publication
+JARs retained differences in generated JVM method order, an auxiliary
+forwarding method, and TASTy source positions and UUIDs. Reflection, debugging
+and compile-time position observations can therefore differ. This is separate
+from the project-output rebuild checks; those compare the built application
+artifacts byte for byte. The SDK receipts identify the actual Nix output used.
+
 Scala CLI handles Native version flags and source directives. Repository
 directives and `--repository` flags keep precedence. The provided SDK repository precedes Maven
 Central when the caller has selected no repositories. Capture excludes this
