@@ -3,6 +3,7 @@
 from a coursier cache, with the certificate authority the mirror made."""
 
 import http.client
+import json
 import shutil
 import ssl
 import tempfile
@@ -32,6 +33,7 @@ class MirrorTests(unittest.TestCase):
 
     def tearDown(self):
         self.server.shutdown()
+        self.server.server_close()
         self.tmp.cleanup()
 
     def request(self, method, path):
@@ -48,6 +50,30 @@ class MirrorTests(unittest.TestCase):
         path = URL.removeprefix("https://repo1.maven.org")
         self.assertEqual(self.request("HEAD", path), (200, b""))
         self.assertEqual(self.request("GET", path), (200, b"jar bytes"))
+        events = [json.loads(line.removeprefix("offline mirror trace: "))
+                  for line in self.logged if line.startswith("offline mirror trace: ")]
+        self.assertTrue(any(e.get("event") == "TCP-accepted" for e in events))
+        self.assertTrue(any(e.get("event") == "TLS-established" for e in events))
+        self.assertTrue(any(e.get("event") == "HEAD" and e.get("status") == 200 for e in events))
+        self.assertTrue(any(e.get("event") == "GET" and e.get("status") == 200 for e in events))
+
+    def test_diagnostics_redact_and_bound(self):
+        # Plain proxy URLs can carry credentials and query strings. They
+        # still resolve by their original identity; diagnostics hash it.
+        secret_url = "https://user:password@repo1.maven.org/private.jar?token=secret#fragment"
+        offline_mirror.Handler.aliases[secret_url] = "https/repo1.maven.org/maven2/com/example/lib/1.0/lib-1.0.jar"
+        connection = http.client.HTTPConnection("127.0.0.1", self.port)
+        connection.request("GET", secret_url, headers={"Authorization": "Bearer private-header"})
+        response = connection.getresponse()
+        self.assertEqual((response.status, response.read()), (200, b"jar bytes"))
+        connection.close()
+        for secret in ["user", "password", "token", "secret", "fragment", "private-header"]:
+            self.assertNotIn(secret, "\n".join(self.logged))
+        self.server.trace_count = 64
+        count = len(self.logged)
+        self.assertEqual(self.request("HEAD", "/missing?private=query"), (404, b""))
+        self.assertEqual(len(self.logged), count + 1)  # Original cache-miss diagnostic only.
+        self.assertNotIn("private=query", "\n".join(self.logged))
 
     def test_alias(self):
         # A mirror URL whose file the cache holds under the canonical path.
@@ -66,7 +92,7 @@ class MirrorTests(unittest.TestCase):
 
     def test_unlocked_url(self):
         self.assertEqual(self.request("HEAD", "/maven2/com/example/other/1.0/other-1.0.jar")[0], 404)
-        self.assertTrue(any("other-1.0.jar" in line for line in self.logged))
+        self.assertTrue(any("is not in the locked downloads" in line for line in self.logged))
 
     def test_unknown_host(self):
         connection = http.client.HTTPSConnection("127.0.0.1", self.port, context=self.context)

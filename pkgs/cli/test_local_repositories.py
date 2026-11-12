@@ -42,6 +42,19 @@ class RootsTests(unittest.TestCase):
         )
 
 
+    def test_only_exact_configured_sdk_root_is_excluded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sdk = root / "sdk/maven"
+            sibling = root / "sdk/maven-extra"
+            found = lr.roots(
+                [sdk.as_uri(), sibling.as_uri(), (root / "home/.m2/repository").as_uri()],
+                root / "home", root / "internal", provided=[sdk],
+            )
+            self.assertEqual([repo["root"] for repo in found],
+                             [sibling.resolve(), (root / "home/.m2/repository").resolve()])
+
+
 class RecordAndStageTests(unittest.TestCase):
     def test_record_and_stage(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -199,6 +199,24 @@ def start_mirror(cache, state, aliases, java_home):
     return offline_mirror.start(cache, state, offline_mirror.hosts_of(aliases), str(keytool), aliases=aliases)
 
 
+def native_sdk_repository():
+    """The complete Native backend provided by the configured Nix scope."""
+    package = os.environ.get("SCALA_CLI_PURIFIER_NATIVE_SDK_PACKAGE")
+    return Path(package) / "maven" if package else None
+
+
+def configure_native_sdk(environment, platform):
+    """Add the provided repository after caller-selected repositories."""
+    repository = native_sdk_repository()
+    if platform != "Native" or repository is None:
+        return
+    caller = environment.get("COURSIER_REPOSITORIES")
+    environment["COURSIER_REPOSITORIES"] = (
+        caller + "|" + repository.as_uri() if caller
+        else repository.as_uri() + "|" + MAVEN_CENTRAL
+    )
+
+
 def common_options(java_home, platform, offline):
     """The options every scala-cli command of a lock run takes; the Nix
     build passes the same ones (nix/lib/build-scala-cli-project.nix)."""
@@ -454,6 +472,7 @@ def check_offline(
             work, java_home, arguments, platform, test, publish, mirror_options, user_home, extra
         )
         environment = isolated_env(work, cache, offline=True)
+        configure_native_sdk(environment, platform)
         output = run_all(commands, root, environment, quiet=True)
         if output is None and ide:
             output = editor_session(
@@ -634,6 +653,7 @@ def lock(args, update=None):
             provided = project_inputs.stage_coursier(cache, views, root)
         user_home = home_override()
         platform, resolvers = detect_platform(root, run_dir, java_home, arguments, environment, user_home)
+        configure_native_sdk(environment, platform)
         if views:
             # The first native resolution discovers transitive constraints in
             # POMs. Restage supplied artifacts after that discovery, even if a
@@ -667,7 +687,10 @@ def lock(args, update=None):
 
         # Coursier reads local repositories in place; the files the class
         # path reaches into are recorded with their hashes.
-        found = local_repositories.roots(resolvers, local_repositories.user_home(), run_dir / "home")
+        found = local_repositories.roots(
+            resolvers, local_repositories.user_home(), run_dir / "home",
+            provided=[native_sdk_repository()] if platform == "Native" and native_sdk_repository() else [],
+        )
         class_paths = class_path(root, run_dir, java_home, arguments, platform, False, environment, user_home)
         if test:
             class_paths += class_path(root, run_dir, java_home, arguments, platform, True, environment, user_home)
@@ -943,6 +966,7 @@ def scala_cli_wrapper(args):
     locked = read_lock(root, lockfile_path)
     cache = prefetched_cache(lockfile_path, locked)
     environment = dict(os.environ, COURSIER_CACHE=str(cache), COURSIER_MODE="offline")
+    configure_native_sdk(environment, locked.get("platform", "JVM"))
     command = args[0] if args and not args[0].startswith("-") else None
     java_home = default_java_home()
     work = lockfile_path.parent / STATE_DIR
@@ -974,11 +998,20 @@ def build_release(root, lockfile_path):
     """The release of the project, built by Nix: a Maven repository
     directory of what `scala-cli publish` wrote in the sandbox."""
     lib = env("SCALA_CLI_PURIFIER_LIB")
+    native_options = []
+    if native_sdk_repository() is not None:
+        native_options = ["--argstr", "nativeSdkPath", env("SCALA_CLI_PURIFIER_NATIVE_SDK_PACKAGE")]
     out = subprocess.run(
         [
             "nix-build",
             "--no-out-link",
             f"{lib}/release.nix",
+            "--argstr",
+            "scalaCliPath",
+            env("SCALA_CLI_PURIFIER_SCALA_CLI_PACKAGE"),
+            "--argstr",
+            "scalaCliVersion",
+            env("SCALA_CLI_PURIFIER_SCALA_CLI_VERSION"),
             "--argstr",
             "nixpkgs",
             env("SCALA_CLI_PURIFIER_NIXPKGS"),
@@ -991,6 +1024,7 @@ def build_release(root, lockfile_path):
             "--argstr",
             "lockFile",
             str(lockfile_path),
+            *native_options,
         ],
         check=True,
         stdout=subprocess.PIPE,

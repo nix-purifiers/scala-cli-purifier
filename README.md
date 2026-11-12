@@ -32,6 +32,69 @@ error and runs the ordinary tool with impure resolution.
 
 For persistent use, add these packages through your usual Nix configuration.
 
+## Frontend and Native SDK
+
+Darwin uses the official JVM frontend for Scala CLI 1.18.0 and a source-built
+Scala Native 0.5.12 distribution. Linux keeps its native frontend by default.
+Select the JVM scope explicitly on either platform:
+
+```zsh
+nix shell 'github:nix-purifiers/scala-cli-purifier#cli-jvm'
+scala-cli-purifier lock --test
+scala-cli-purifier prefetch
+scala-cli compile .
+scala-cli test .
+scala-cli run .
+```
+
+This package uses an explicit initial Java executable and the official
+Scala CLI jar. It preserves ordinary arguments and environment variables,
+including upstream project-JDK selection and version relaunch behavior.
+On Darwin it requests IPv4 at JVM startup. The `jvm-sdk` package's manifest
+describes that initial frontend, rather than guaranteeing the selection
+made by every subsequent operation. Both scopes use the existing v1 lock format.
+
+The JVM scope provides the patched Native SDK through a Nix-built Maven
+repository. The distribution is compiled and published from the pinned
+upstream sources at their 0.5.12 coordinates. Its receipt records the
+distribution identifier, source revisions, core and CLI patch hashes, and input-manifest hash,
+and build-Java version. Initial realization fetches 986 hashed source and
+build inputs and compiles the SDK with Java 17. Subsequent uses can reuse
+that Nix output. The frontend and project compiler continue to use Java 21.
+
+The complete source-built SDK is not byte reproducible. Independent Linux
+and Darwin builds produced identical Native NIR entries, but two publication
+JARs retained differences in generated JVM method order, an auxiliary
+forwarding method, and TASTy source positions and UUIDs. Reflection, debugging
+and compile-time position observations can therefore differ. This is separate
+from the project-output rebuild checks; those compare the built application
+artifacts byte for byte. The SDK receipts identify the actual Nix output used.
+
+Scala CLI handles Native version flags and source directives. Repository
+directives and `--repository` flags keep precedence. The provided SDK repository precedes Maven
+Central when the caller has selected no repositories. Capture excludes this
+exact provided repository from ordinary download and local-repository snapshots.
+The pure build retains its complete Nix input and distribution identity.
+
+The original native frontend is available as `#cli-native` and through
+`pkgs.scala-cli-purifier-native`. A scope override setting `native-sdk = null`
+uses ordinary upstream Native dependency resolution.
+
+For optional sandbox builds, use the matching named package scope:
+
+```nix
+{ scala-cli-purifier-jvm }:
+(scala-cli-purifier-jvm.buildScalaCliProject { src = ./.; }).packages.app
+```
+
+With the scope's configured defaults, capture, the ordinary wrapper,
+the builder and publication share the same initial frontend. An explicit
+`SCALA_CLI_PURIFIER_SCALA_CLI` override changes the frontend invoked by
+capture and the ordinary wrapper; the builder and publication continue
+to use the package configured in the scope. A JVM frontend still produces
+Scala Native programs when the project selects that platform; it does
+not set properties inside those Native executables.
+
 
 ## Development loop
 
@@ -59,10 +122,13 @@ module or for the named ones:
 scala-cli-purifier update com.lihaoyi::sourcecode
 ```
 
-The commands run scala-cli on the JDK 21 of the package, which
-`SCALA_CLI_PURIFIER_JAVA_HOME` can replace; `JAVA_HOME` does not choose it,
-so a relock records the same Java version on every machine. The Nix build
-uses the headless JDK of that major version from the package set.
+The commands configure the package's JDK 21 for the project, which
+`SCALA_CLI_PURIFIER_JAVA_HOME` can replace; `JAVA_HOME` does not choose that
+default. Explicit Scala CLI options keep their upstream precedence.
+The lock records the configured Java version, and the Nix build selects
+the headless JDK of that major version from the pinned package set.
+Different systems can provide different Java patches and vendors; execution
+receipts distinguish the configured JDK from an observed compiler process.
 
 The builder recognizes legacy Java version notation in existing locks:
 `1.8.0_504` selects major `8`, while `21.0.12.1` selects `21`. Locks keep

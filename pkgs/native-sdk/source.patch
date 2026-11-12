@@ -1,0 +1,107 @@
+--- a/test-interface/src/main/scala/scala/scalanative/testinterface/TestMain.scala
++++ b/test-interface/src/main/scala/scala/scalanative/testinterface/TestMain.scala
+@@ -51,7 +51,7 @@
+      * See: https://github.com/scala-native/scala-native/issues/3630
+      */
+ 
+-    if (!LinktimeInfo.isFreeBSD && !LinktimeInfo.isOpenBSD && !LinktimeInfo.isNetBSD)
++    if (!LinktimeInfo.isFreeBSD && !LinktimeInfo.isOpenBSD && !LinktimeInfo.isNetBSD && !LinktimeInfo.isMac)
+       return
+ 
+     System.setProperty("java.net.preferIPv4Stack", "true")
+--- a/util/src/main/scala/scala/scalanative/io/VirtualDirectory.scala
++++ b/util/src/main/scala/scala/scalanative/io/VirtualDirectory.scala
+@@ -6,7 +6,6 @@
+ import java.nio.ByteBuffer
+ import java.nio.channels._
+ import java.nio.file._
+-import java.util.HashMap
+ 
+ import scalanative.util.{Scope, acquire, defer}
+ 
+@@ -174,16 +173,9 @@
+       extends NioDirectory {
+     def uri: URI = URI.create(s"jar:${path.toUri}")
+     private val fileSystem: FileSystem =
+-      acquire {
+-        try {
+-          val params = new HashMap[String, String]()
+-          params.put("create", "false")
+-          FileSystems.newFileSystem(uri, params)
+-        } catch {
+-          case e: FileSystemAlreadyExistsException =>
+-            FileSystems.getFileSystem(uri)
+-        }
+-      }
++      // Each Scope closes what it acquires. Open a private filesystem rather
++      // than sharing a URI-registered filesystem with another Scope.
++      acquire(FileSystems.newFileSystem(path, null: ClassLoader))
+ 
+     override def pathMatcher(pattern: String): PathMatcher =
+       fileSystem.getPathMatcher(pattern)
+@@ -191,14 +183,11 @@
+     override def files: Seq[Path] = {
+       val roots = jIteratorToSeq(fileSystem.getRootDirectories.iterator())
+ 
+-      roots
+-        .flatMap { path =>
+-          jIteratorToSeq {
+-            Files
+-              .walk(path, Integer.MAX_VALUE, FileVisitOption.FOLLOW_LINKS)
+-              .iterator()
+-          }.filter(Files.isRegularFile(_))
+-        }
++      roots.flatMap { path =>
++        val walk = Files.walk(path, Integer.MAX_VALUE, FileVisitOption.FOLLOW_LINKS)
++        try jIteratorToSeq(walk.iterator()).filter(Files.isRegularFile(_)).toVector
++        finally walk.close()
++      }
+     }
+   }
+ 
+--- a/tools/src/main/scala/scala/scalanative/linker/Infos.scala
++++ b/tools/src/main/scala/scala/scalanative/linker/Infos.scala
+@@ -13,6 +13,10 @@
+ 
+ sealed abstract class ScopeInfo extends Info {
+   override def name: nir.Global.Top
++  // Hierarchy sets influence runtime type IDs. Keep identity equality while
++  // giving each scope a stable hash derived from its unique NIR name.
++  final override def hashCode(): Int = name.hashCode()
++
+   def ty: nir.Type.Ref = nir.Type.Ref(name)
+   val members = mutable.UnrolledBuffer.empty[MemberInfo]
+   val calls = mutable.Set.empty[nir.Sig]
+--- a/nscplugin/src/main/scala-2/scala/scalanative/nscplugin/NirGenStat.scala
++++ b/nscplugin/src/main/scala-2/scala/scalanative/nscplugin/NirGenStat.scala
+@@ -56,7 +56,7 @@
+   }
+ 
+   class CollectMethodInfo extends Traverser {
+-    var mutableVars = Set.empty[Symbol]
++    var mutableVars: Set[Symbol] = scala.collection.immutable.ListSet.empty[Symbol]
+     var labels = Set.empty[LabelDef]
+ 
+     override def traverse(tree: Tree) = {
+--- a/nscplugin/src/main/scala-3/scala/scalanative/nscplugin/NirCodeGen.scala
++++ b/nscplugin/src/main/scala-3/scala/scalanative/nscplugin/NirCodeGen.scala
+@@ -210,7 +210,7 @@
+   }
+ 
+   class CollectMethodInfo extends TreeTraverser {
+-    var mutableVars = Set.empty[Symbol]
++    var mutableVars: Set[Symbol] = scala.collection.immutable.ListSet.empty[Symbol]
+     var labels = Set.empty[Labeled]
+ 
+     override def traverse(tree: Tree)(using Context): Unit = {
+--- a/nir/src/main/scala/scala/scalanative/nir/serialization/BinarySerializer.scala
++++ b/nir/src/main/scala/scala/scalanative/nir/serialization/BinarySerializer.scala
+@@ -15,7 +15,7 @@
+ final class BinarySerializer(channel: WritableByteChannel) {
+   def serialize(defns: Seq[Defn]) = {
+     // Write to in-memory buffers
+-    for (defn <- defns) {
++    for (defn <- defns.sortBy(_.name.mangle)) {
+       val offset = Defns.position()
+       Defns.put(defn)
+       Offsets.put(defn.name, offset)

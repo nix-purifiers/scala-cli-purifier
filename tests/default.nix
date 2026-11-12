@@ -15,6 +15,8 @@
   flakeLib,
   # The scala-cli-purifier command, whose build runs its unit tests.
   cli,
+  # Raw initial frontend used by this test scope's executable receipt.
+  scala-cli ? cli.initialScalaCli,
 }:
 let
   inherit (pkgs) lib;
@@ -40,6 +42,54 @@ let
   # A dependency downloaded from a URL, whose existence coursier checks with
   # a HEAD request that the offline mirror answers in the sandbox.
   url = build { src = ./fixtures/url; };
+
+  # Exercise the configured frontend with an explicit IPv4 property. The
+  # leading -D is consumed by ScalaCli.setSystemProps before resolution;
+  # this does not add a project JVM option or change the locked sources.
+  urlIpv4Cli =
+    (pkgs.writeShellScriptBin "scala-cli" ''
+      exec ${pkgs.python3.interpreter} -B ${./url-cli-probe.py} \
+        ${lib.getExe' scala-cli "scala-cli"} "$@"
+    '')
+    // {
+      inherit (scala-cli) version;
+    };
+  urlIpv4 = (build.override { scala-cli = urlIpv4Cli; }) { src = ./fixtures/url; };
+  urlIpv4Package = urlIpv4.packages.url.overrideAttrs (old: {
+    preBuild = (old.preBuild or "") + ''
+      ${pkgs.python3.interpreter} -B ${./local-networking.py}
+    '';
+  });
+
+  # Official same-version JVM payload, separate from the native SDK and
+  # fixed by its release asset digest. No source bootstrap or substitution.
+  urlJvmJar = pkgs.fetchurl {
+    url = "https://github.com/VirtusLab/scala-cli/releases/download/v1.18.0/scala-cli.jar";
+    sha256 = "1ec9f3f906d4cad5ef603cb5fef1561f98beb678c5c8f4a157004aa5ad1dcc91";
+  };
+  urlJvmCli =
+    (pkgs.writeShellScriptBin "scala-cli" ''
+      exec ${pkgs.python3.interpreter} -B ${./url-jvm-cli-probe.py} \
+        ${lib.getExe' pkgs.jdk21_headless "java"} ${urlJvmJar} "$@"
+    '')
+    // {
+      version = "1.18.0";
+    };
+  urlJvm = (build.override { scala-cli = urlJvmCli; }) { src = ./fixtures/url; };
+  urlJvmPackage = urlJvm.packages.url.overrideAttrs (old: {
+    preBuild = (old.preBuild or "") + ''
+      ${pkgs.python3.interpreter} -B ${./local-networking.py}
+    '';
+  });
+
+  # Separate ordinary-argv JVM transport control; no SDK scope wiring.
+  urlTransportSdk = pkgs.callPackage ../pkgs/jvm-sdk { };
+  urlTransport = (build.override { scala-cli = urlTransportSdk; }) { src = ./fixtures/url; };
+  urlTransportPackage = urlTransport.packages.url.overrideAttrs (old: {
+    preBuild = (old.preBuild or "") + ''
+      ${pkgs.python3.interpreter} -B ${./local-networking.py}
+    '';
+  });
 
   # Dependencies from ivy2Local and m2Local, which the build is given as
   # directories; the lock was made with those of fixtures/local-home.
@@ -243,7 +293,7 @@ let
   };
   # A scala-cli of another version than the lock was made with, which fails
   # evaluation, naming both versions.
-  otherScalaCli = pkgs.scala-cli.overrideAttrs {
+  otherScalaCli = scala-cli.overrideAttrs {
     version = "0.0.1";
     __intentionallyOverridingVersion = true;
   };
@@ -284,6 +334,30 @@ in
 
   inherit cli;
 
+  toolchain-receipt =
+    assert toString pkgs.jdk21_headless == toString pkgs.javaPackages.compiler.openjdk21.headless;
+    pkgs.runCommand "scala-cli-toolchain-receipt" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+      export HOME=$TMPDIR/home
+      mkdir -p "$HOME" "$out"
+      python3 -B ${./toolchain-receipt.py} \
+        ${lib.getExe' scala-cli "scala-cli"} \
+        ${lib.getExe' pkgs.jdk21_headless "java"} > "$out/versions.json"
+    '';
+
+  # The Darwin local-networking exception must allow the locked mirror's
+  # loopback listener while keeping external outbound connections denied.
+  local-networking =
+    pkgs.runCommand "scala-cli-local-networking"
+      {
+        nativeBuildInputs = [ pkgs.python3 ];
+        __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
+      }
+      ''
+        python3 -B ${./local-networking.py} > result
+        mkdir "$out"
+        cp result "$out/"
+      '';
+
   hello-runs = runs "hello-runs" hello.packages.hello [ ''{"hello":"Nix World"}'' ];
   hello-tests = hello.tests;
   script-runs = runs "script-runs" script.packages.script [ "script on Scala 2.13" ];
@@ -293,6 +367,26 @@ in
     "sourcecode from a version range: 1 + 1"
   ];
   url-runs = runs "url-runs" url.packages.url [ "hiccup from a URL: true" ];
+  url-ipv4-diagnostic = runs "url-ipv4-diagnostic" urlIpv4Package [ "hiccup from a URL: true" ];
+  url-jvm-diagnostic = runs "url-jvm-diagnostic" urlJvmPackage [ "hiccup from a URL: true" ];
+  url-jvm-transport-diagnostic = runs "url-jvm-transport-diagnostic" urlTransportPackage [
+    "hiccup from a URL: true"
+  ];
+  jvm-sdk-transport =
+    pkgs.runCommand "jvm-sdk-transport-tests" { nativeBuildInputs = [ pkgs.python3 ]; }
+      ''
+        python3 -B ${./test-jvm-sdk-transport.py} --sdk ${urlTransportSdk} -v
+        touch "$out"
+      '';
+  relock-comparator =
+    pkgs.runCommand "scala-cli-relock-comparator"
+      {
+        nativeBuildInputs = [ pkgs.python3 ];
+      }
+      ''
+        PYTHONPATH=${../pkgs/cli} python3 ${./test-relock-compare.py} ${./relock-compare.py} -v
+        touch "$out"
+      '';
   local-runs = runs "local-runs" local.packages.local [
     "FROM IVY2LOCAL!"
     "from m2local..."
@@ -433,6 +527,7 @@ in
   conformance-offline =
     pkgs.runCommand "conformance-offline"
       {
+        __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
         nativeBuildInputs = [
           cli
           pkgs.python3
@@ -441,6 +536,7 @@ in
       ''
         export HOME=$TMPDIR/home
         mkdir -p $HOME
+        python3 -B ${./local-networking.py}
         ${lib.optionalString pkgs.stdenv.buildPlatform.isDarwin ''
           # On macOS the build user's home in the password database is
           # /var/empty, which nothing can write, and scala-cli and the Bloop
@@ -519,12 +615,38 @@ in
   # The jar of besom core holds its classes. The listing goes to a file
   # first: grep -q stops at the first match, and unzip, still writing the
   # listing of the whole assembly, would fail with SIGPIPE.
-  example-besom-core = pkgs.runCommand "example-besom-core" { nativeBuildInputs = [ pkgs.unzip ]; } ''
-    unzip -l ${besomCore.packages.besom-core}/share/java/besom-core.jar > listing
-    grep -q 'besom/internal/Context.class' listing
-    mkdir -p $out
-    ln -s ${besomCore.packages.besom-core} $out/package
-  '';
+  example-besom-core =
+    pkgs.runCommand "example-besom-core"
+      {
+        nativeBuildInputs = [
+          pkgs.unzip
+          pkgs.jdk21_headless
+        ];
+      }
+      ''
+        unzip -l ${besomCore.packages.besom-core}/share/java/besom-core.jar > listing
+        grep -q 'besom/internal/Context.class' listing
+        cat > BesomRuntime.java <<'JAVA'
+        class BesomRuntime {
+          public static void main(String[] args) throws Exception {
+            Class<?> api = Class.forName("besom.util.NonEmptyString$package$NonEmptyString$");
+            Object module = api.getField("MODULE$").get(null);
+            java.lang.reflect.Method apply = api.getMethod("apply", String.class);
+            Class<?> option = Class.forName("scala.Option");
+            Object blank = apply.invoke(module, "   ");
+            Object value = apply.invoke(module, "besom-runtime");
+            if (!(Boolean) option.getMethod("isEmpty").invoke(blank))
+              throw new AssertionError("Besom accepted a blank string");
+            if (!"besom-runtime".equals(option.getMethod("get").invoke(value)))
+              throw new AssertionError("Besom lost the nonempty value");
+            System.out.println("BESOM CORE RUNTIME PASSED");
+          }
+        }
+        JAVA
+        java --class-path ${besomCore.packages.besom-core}/share/java/besom-core.jar BesomRuntime.java
+        mkdir -p $out
+        ln -s ${besomCore.packages.besom-core} $out/package
+      '';
 
   # The hello fixture kept external builds from the purifier lockfile
   # outside its source.
