@@ -431,7 +431,9 @@ in
           test -f "$f" || { echo "the release lacks $f" >&2; exit 1; }
           test "$(sha1sum < "$f" | cut -d' ' -f1)" = "$(cat "$f.sha1")" || { echo "$f.sha1 does not match" >&2; exit 1; }
         done
-        unzip -l greeting_3-1.0.0.jar | grep -q 'greeting/Greeting\$package.class'
+        # Drain the listing before grep -q can close its input with SIGPIPE.
+        unzip -l greeting_3-1.0.0.jar > "$TMPDIR/library-jar-listing"
+        grep -q 'greeting/Greeting\$package.class' "$TMPDIR/library-jar-listing"
         test "$(xmllint --xpath 'string(/*[local-name()="project"]/*[local-name()="artifactId"])' greeting_3-1.0.0.pom)" = greeting_3
         mkdir -p $out
         ln -s ${library.release} $out/release
