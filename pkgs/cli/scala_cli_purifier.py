@@ -1022,19 +1022,10 @@ def scala_cli_wrapper(args):
     cache = prefetched_cache(lockfile_path, locked)
     environment = dict(os.environ, COURSIER_CACHE=str(cache), COURSIER_MODE="offline")
     configure_native_sdk(environment, locked.get("platform", "JVM"))
-    # Locate a build command after a project-JVM selector, then put the
-    # command first as Scala CLI requires. Keep the SDK tokens and inputs,
-    # with the wrapper's offline/mirror options. Never scan past --.
-    command_index = 0
-    while command_index < len(args):
-        option = args[command_index]
-        if option == "--java-home":
-            command_index += 2
-        elif option.startswith("--java-home="):
-            command_index += 1
-        else:
-            break
-    command = args[command_index] if command_index < len(args) and not args[command_index].startswith("-") else None
+    # Preserve upstream command/global-option semantics. In particular,
+    # unsupported option-first command shapes are delegated unchanged;
+    # runtime discovery still receives every option and its -- boundary.
+    command = args[0] if args and not args[0].startswith("-") else None
     # Preserve option-first invocation and its -- terminator. The runtime
     # selector ignores command/input tokens; dropping argv[0] can discard
     # the caller's --java-home or expose an application argument as an option.
@@ -1048,9 +1039,8 @@ def scala_cli_wrapper(args):
                 scala_cli,
                 *java_properties(work, mirror_options, home_override()),
                 command,
-                *args[:command_index],
                 *common_options(java_home, locked.get("platform", "JVM"), offline=True, arguments=args),
-                *args[command_index + 1:],
+                *args[1:],
             ]
         else:
             argv = [scala_cli, *args]

@@ -117,6 +117,7 @@ class ProjectRuntimeTests(unittest.TestCase):
             locked = {"arguments": ["."], "platform": "JVM", "artifacts": []}
             cases = [(["--java-home", str(explicit), "run", "."], explicit),
                      (["--java-home=" + str(explicit), "run", "."], explicit),
+                     (["run", ".", "--java-home", str(explicit)], explicit),
                      (["--", "--java-home=/application"], ambient)]
             for arguments, expected in cases:
                 with self.subTest(arguments=arguments), mock.patch.dict(os.environ, environment, clear=True), \
@@ -127,15 +128,11 @@ class ProjectRuntimeTests(unittest.TestCase):
                     self.assertEqual(scp.scala_cli_wrapper(arguments), 0)
                     self.assertEqual(mirror.call_args.args[-1], str(expected))
                     actual = json.loads(argv_file.read_text())
-                    if arguments[0] == "--":
+                    if arguments[0] != "run":
                         self.assertEqual(actual, arguments)
                     else:
-                        # Scala CLI requires the command first. The SDK
-                        # tokens and inputs survive that normalization.
-                        command_index = arguments.index("run")
-                        index = actual.index("run")
-                        self.assertEqual(actual[index + 1:index + 1 + command_index], arguments[:command_index])
-                        self.assertEqual(actual[-1], ".")
+                        self.assertEqual(actual[-len(arguments[1:]):], arguments[1:])
+                        self.assertEqual(sum(a == "--java-home" or a.startswith("--java-home=") for a in actual), 1)
                         self.assertIn("--offline", actual)
                         self.assertIn("--power", actual)
 
