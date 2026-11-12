@@ -20,7 +20,7 @@ import time
 profile = os.environ.get("SCALA_CLI_TIER2_PROFILE", "native")
 if profile not in ("native", "jvm"):
     raise RuntimeError("profile must be native or jvm")
-cli_attribute = "cli-jvm" if profile == "jvm" else "cli"
+cli_attribute = "jvm-profile.fixture-cli" if profile == "jvm" else "fixture-cli"
 scope_attribute = "scala-cli-purifier-jvm" if profile == "jvm" else "scala-cli-purifier"
 check_prefix = "jvm-profile." if profile == "jvm" else ""
 root = Path(__file__).resolve().parent.parent
@@ -77,7 +77,7 @@ if not Path(snapshot).is_dir() or Path(snapshot).resolve() != Path(snapshot):
     raise RuntimeError("archived source must be a materialized canonical directory")
 report.update(source=snapshot, sourceNarHash=output("nix", "hash", "path", snapshot))
 run("retain-source", ["nix-store", "--add-root", results / "source", "--realise", snapshot])
-cli = Path(run("build-cli", ["nix", "build", "path:" + snapshot + "#" + cli_attribute, "--print-out-paths",
+cli = Path(run("build-cli", ["nix", "build", "path:" + snapshot + "#checks." + report["system"] + "." + cli_attribute, "--print-out-paths",
                             "--out-link", results / "cli"]).strip().splitlines()[-1])
 toolchain_command = ["nix", "build", "path:" + snapshot + f"#checks.{report['system']}.{check_prefix}toolchain-receipt",
                      "--print-build-logs", "--out-link", results / "toolchain"]
@@ -162,7 +162,7 @@ common = f'''let
 in '''
 expression = common + f'''pkgs.runCommand "scala-cli-fresh-prefetch-offline" {{
   __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
-  nativeBuildInputs = [ f.packages.{system}.{cli_attribute} pkgs.python3 ];
+  nativeBuildInputs = [ f.checks.{system}.{cli_attribute} pkgs.python3 ];
   downloads = assert toString downloads == "{downloads}"; downloads;
 }} ''
   export HOME=$TMPDIR/home

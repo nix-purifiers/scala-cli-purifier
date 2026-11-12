@@ -412,25 +412,28 @@ def java_version(java_home):
     raise PurifierError(f"{java_home} has no release file naming its Java version")
 
 
-def default_java_home(arguments=()):
+def default_java_home(arguments=(), *, locked_arguments=()):
     """Discover the caller's project runtime without selecting a Nix SDK.
 
     The frontend may use an implementation JVM of its own. Its JVM is not
     the project runtime passed to upstream Scala CLI by common_options.
     """
     selected = os.environ.get("SCALA_CLI_PURIFIER_JAVA_HOME") or os.environ.get("JAVA_HOME")
-    options = iter(arguments)
-    for option in options:
-        if option == "--":
-            break
-        if option == "--java-home":
-            selected = next(options, None)
-            if not selected:
-                raise PurifierError("--java-home needs the installed project runtime's path")
-        elif option.startswith("--java-home="):
-            selected = option.split("=", 1)[1]
-            if not selected:
-                raise PurifierError("--java-home needs the installed project runtime's path")
+    # Each invocation has its own application-argument boundary. A -- in
+    # stored arguments must not hide the current invocation's explicit SDK.
+    for group in (locked_arguments, arguments):
+        options = iter(group)
+        for option in options:
+            if option == "--":
+                break
+            if option == "--java-home":
+                selected = next(options, None)
+                if not selected:
+                    raise PurifierError("--java-home needs the installed project runtime's path")
+            elif option.startswith("--java-home="):
+                selected = option.split("=", 1)[1]
+                if not selected:
+                    raise PurifierError("--java-home needs the installed project runtime's path")
     java = str(Path(selected, "bin", "java")) if selected else shutil.which("java")
     if not java:
         raise PurifierError(
@@ -458,8 +461,8 @@ def default_java_home(arguments=()):
     if selected and Path(selected).resolve() != actual:
         raise PurifierError(f"selected project Java home {selected} runs a different runtime at {actual}")
     java_version(actual)
-    if not (actual / "bin" / "keytool").is_file():
-        raise PurifierError(f"selected project Java {actual} has no bin/keytool, required by the offline mirror")
+    if not os.access(actual / "bin" / "keytool", os.X_OK):
+        raise PurifierError(f"selected project Java {actual} has no executable bin/keytool, required by the offline mirror")
     return str(actual)
 
 
@@ -1012,7 +1015,10 @@ def scala_cli_wrapper(args):
     environment = dict(os.environ, COURSIER_CACHE=str(cache), COURSIER_MODE="offline")
     configure_native_sdk(environment, locked.get("platform", "JVM"))
     command = args[0] if args and not args[0].startswith("-") else None
-    java_home = default_java_home([*locked["arguments"], *args[1:]])
+    # Preserve option-first invocation and its -- terminator. The runtime
+    # selector ignores command/input tokens; dropping argv[0] can discard
+    # the caller's --java-home or expose an application argument as an option.
+    java_home = default_java_home(args, locked_arguments=locked["arguments"])
     work = lockfile_path.parent / STATE_DIR
     aliases = offline_mirror.lock_aliases(locked["artifacts"])
     mirror_options, server = start_mirror(cache, work / "mirror", aliases, java_home)

@@ -68,7 +68,7 @@
                 inherit pkgs;
                 overlay = self.overlays.default;
                 flakeLib = self.lib;
-                inherit (self.packages.${system}) cli;
+                localCli = self.packages.${system}.cli;
               })
               // {
                 jvm-profile = import ../../../tests/jvm-profile.nix {

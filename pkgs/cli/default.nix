@@ -18,6 +18,9 @@
   gnupg,
   scala-cli,
   native-sdk ? null,
+  # Explicit project SDK for packaged fixture/reproducibility workflows.
+  # Local adoption has no packaged project runtime by default.
+  project-java ? null,
   jdk21_headless,
   nodejs,
   clang,
@@ -53,7 +56,7 @@ stdenvNoCC.mkDerivation {
   passthru = {
     inherit librarySource;
     initialScalaCli = scala-cli;
-    configuredJava = jdk21_headless;
+    configuredJava = project-java;
     configuredNativeSDK = native-sdk;
   };
 
@@ -112,6 +115,9 @@ stdenvNoCC.mkDerivation {
       --set-default SCALA_CLI_PURIFIER_SCALA_CLI ${lib.getExe' scala-cli "scala-cli"}
       --set SCALA_CLI_PURIFIER_SCALA_CLI_VERSION ${scala-cli.version}
       --set SCALA_CLI_PURIFIER_SCALA_CLI_PACKAGE ${scala-cli}
+      ${lib.optionalString (project-java != null) ''
+        --set-default SCALA_CLI_PURIFIER_JAVA_HOME ${project-java.home or project-java}
+      ''}
       --set SCALA_CLI_PURIFIER_LIB ${librarySource}/pkgs/cli/nix
       --set SCALA_CLI_PURIFIER_NIXPKGS ${path}
       --set SCALA_CLI_PURIFIER_PURIFIER ${purifierSource}

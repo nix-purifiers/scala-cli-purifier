@@ -17,10 +17,11 @@ let
   all = import ./default.nix {
     inherit pkgs flakeLib;
     overlay = testOverlay;
-    cli = selected.cli;
+    localCli = selected.cli;
     scala-cli = (pkgs.extend overlay).scala-cli-purifier.jvm-sdk;
   };
   names = [
+    "fixture-cli"
     "toolchain-receipt"
     "conformance-offline"
     "hello-runs"

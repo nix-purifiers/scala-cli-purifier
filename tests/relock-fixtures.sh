@@ -15,7 +15,8 @@
 # scala-cli version (org.virtuslab.scala-cli:cli_3), which reads
 # java.io.tmpdir.
 set -euo pipefail
-cli=$(nix build --no-link --print-out-paths '.#cli')/bin/scala-cli-purifier
+system=$(nix eval --impure --raw --expr builtins.currentSystem)
+cli=$(nix build --no-link --print-out-paths ".#checks.$system.fixture-cli")/bin/scala-cli-purifier
 fixtures=$(cd "${FIXTURES:-tests/fixtures}" && pwd)
 export SCALA_CLI_PURIFIER_MAVEN_CENTRAL_MIRROR=https://maven-central.storage-download.googleapis.com/maven2
 

@@ -30,6 +30,7 @@ class ProjectRuntimeTests(unittest.TestCase):
         )
         java.chmod(0o755)
         (home / "bin/keytool").touch()
+        (home / "bin/keytool").chmod(0o755)
         return home
 
     def test_installed_future_version_needs_no_maintainer_table(self):
@@ -86,6 +87,46 @@ class ProjectRuntimeTests(unittest.TestCase):
             with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
                 with self.assertRaisesRegex(scp.PurifierError, "keytool.*offline mirror"):
                     scp.default_java_home()
+
+    def test_current_sdk_option_is_not_hidden_by_stored_application_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            with mock.patch.dict(os.environ, {"JAVA_HOME": "/invalid"}, clear=True):
+                self.assertEqual(scp.default_java_home(
+                    ["--java-home", str(home)], locked_arguments=[".", "--", "--java-home=/application"]), str(home))
+
+    def test_nonexecutable_keytool_is_a_capability_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            (home / "bin/keytool").chmod(0o644)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "executable bin/keytool"):
+                    scp.default_java_home()
+
+    def test_locked_wrapper_preserves_option_first_sdk_and_terminator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ambient = self.sdk(root, "ambient")
+            explicit = self.sdk(root, "explicit")
+            frontend = root / "frontend"
+            argv_file = root / "argv.json"
+            frontend.write_text(f"#!{sys.executable}\nimport json,sys\n"
+                                f"open({str(argv_file)!r},'w').write(json.dumps(sys.argv[1:]))\n")
+            frontend.chmod(0o755)
+            environment = {"JAVA_HOME": str(ambient), "SCALA_CLI_PURIFIER_SCALA_CLI": str(frontend)}
+            locked = {"arguments": ["."], "platform": "JVM", "artifacts": []}
+            cases = [(["--java-home", str(explicit), "run", "."], explicit),
+                     (["--java-home=" + str(explicit), "run", "."], explicit),
+                     (["--", "--java-home=/application"], ambient)]
+            for arguments, expected in cases:
+                with self.subTest(arguments=arguments), mock.patch.dict(os.environ, environment, clear=True), \
+                     mock.patch.object(scp, "find_lockfile", return_value=(root / "lock", root)), \
+                     mock.patch.object(scp, "read_lock", return_value=locked), \
+                     mock.patch.object(scp, "prefetched_cache", return_value=root / "cache"), \
+                     mock.patch.object(scp, "start_mirror", return_value=([], mock.Mock())) as mirror:
+                    self.assertEqual(scp.scala_cli_wrapper(arguments), 0)
+                    self.assertEqual(mirror.call_args.args[-1], str(expected))
+                    self.assertEqual(json.loads(argv_file.read_text()), arguments)
 
 
 class ReleaseSelectionTests(unittest.TestCase):

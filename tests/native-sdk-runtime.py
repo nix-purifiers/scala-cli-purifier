@@ -109,7 +109,7 @@ variant = publication["variant"]
 shutil.copyfile(sdk / "receipts/publication.json", results / "publication.json")
 shutil.copyfile(sdk / "receipts/distribution.json", results / "distribution.json")
 report["nativeSDK"] = identify("sdk", sdk)
-cli = Path(run("cli", "nix", "build", f"path:{snapshot}#cli-jvm", "--print-out-paths",
+cli = Path(run("cli", "nix", "build", f"path:{snapshot}#checks.{system}.jvm-profile.fixture-cli", "--print-out-paths",
                "--out-link", results / "cli").splitlines()[-1]) / "bin/scala-cli-purifier"
 frontend = Path(run("frontend", "nix", "build", f"path:{snapshot}#jvm-sdk", "--print-out-paths",
                     "--out-link", results / "frontend").splitlines()[-1])
@@ -237,7 +237,7 @@ ordinary_expression = common.removesuffix("in ") + f'''
   }};
 in pkgs.runCommand "native-sdk-ordinary" {{
   __darwinAllowLocalNetworking = pkgs.stdenv.buildPlatform.isDarwin;
-  nativeBuildInputs = [ f.packages.{system}.cli-jvm pkgs.python3 ];
+  nativeBuildInputs = [ f.checks.{system}.jvm-profile.fixture-cli pkgs.python3 ];
   inherit downloads;
 }} ''
   export HOME=$TMPDIR/home
