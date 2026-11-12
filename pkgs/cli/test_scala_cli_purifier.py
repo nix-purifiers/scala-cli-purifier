@@ -6,6 +6,7 @@ options, the names of published files, and the checks `prefetch`, the scala-cli 
 import hashlib
 import json
 import os
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -13,6 +14,78 @@ from pathlib import Path
 
 import lockfile
 import scala_cli_purifier as scp
+
+
+class ProjectRuntimeTests(unittest.TestCase):
+    def sdk(self, root, name, version="99.1", status=0):
+        home = root / name
+        (home / "bin").mkdir(parents=True)
+        (home / "release").write_text(f'JAVA_VERSION="{version}"\n')
+        java = home / "bin/java"
+        java.write_text(
+            f"#!{sys.executable}\nimport sys\n"
+            f"print('    java.home = ' + {str(home)!r}, file=sys.stderr)\n"
+            f"print('UnsupportedClassVersionError' if {status} else '    java.version = {version}', file=sys.stderr)\n"
+            f"sys.exit({status})\n"
+        )
+        java.chmod(0o755)
+        (home / "bin/keytool").touch()
+        return home
+
+    def test_installed_future_version_needs_no_maintainer_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(home))
+                self.assertEqual(scp.java_version(home), "99.1")
+
+    def test_explicit_selection_precedes_ambient_java(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            explicit = self.sdk(Path(tmp), "explicit")
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home),
+                    "SCALA_CLI_PURIFIER_JAVA_HOME": str(explicit)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(explicit))
+                self.assertEqual(scp.default_java_home(["--java-home", str(home)]), str(home))
+                self.assertEqual(scp.default_java_home(["--java-home=" + str(home)]), str(home))
+                self.assertEqual(scp.default_java_home(["--", "--java-home", "/application-argument"]), str(explicit))
+
+    def test_path_launcher_reports_the_actual_runtime_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            launchers = Path(tmp) / "launchers"
+            launchers.mkdir()
+            (launchers / "java").symlink_to(home / "bin/java")
+            with mock.patch.dict(os.environ, {"PATH": str(launchers)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(home))
+
+    def test_missing_host_does_not_select_a_nix_sdk(self):
+        with mock.patch.dict(os.environ, {"PATH": "/does-not-exist"}, clear=True):
+            with self.assertRaisesRegex(scp.PurifierError, "no project Java runtime"):
+                scp.default_java_home()
+
+    def test_invalid_explicit_host_never_falls_back_to_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            with mock.patch.dict(os.environ, {"PATH": str(home / "bin"),
+                    "JAVA_HOME": "/invalid-host"}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "cannot execute selected project Java"):
+                    scp.default_java_home()
+
+    def test_runtime_execution_error_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host", status=1)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "UnsupportedClassVersionError"):
+                    scp.default_java_home()
+
+    def test_required_mirror_capability_has_a_precise_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            (home / "bin/keytool").unlink()
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "keytool.*offline mirror"):
+                    scp.default_java_home()
 
 
 class ReleaseSelectionTests(unittest.TestCase):
