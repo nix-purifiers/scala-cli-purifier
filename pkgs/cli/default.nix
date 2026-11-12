@@ -47,7 +47,7 @@ let
 in
 stdenvNoCC.mkDerivation {
   pname = "scala-cli-purifier";
-  version = lib.trim (builtins.readFile ../../version.txt);
+  version = import ../version.nix;
   passthru = {
     inherit librarySource;
     initialScalaCli = scala-cli;
