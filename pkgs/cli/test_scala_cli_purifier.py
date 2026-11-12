@@ -126,7 +126,18 @@ class ProjectRuntimeTests(unittest.TestCase):
                      mock.patch.object(scp, "start_mirror", return_value=([], mock.Mock())) as mirror:
                     self.assertEqual(scp.scala_cli_wrapper(arguments), 0)
                     self.assertEqual(mirror.call_args.args[-1], str(expected))
-                    self.assertEqual(json.loads(argv_file.read_text()), arguments)
+                    actual = json.loads(argv_file.read_text())
+                    if arguments[0] == "--":
+                        self.assertEqual(actual, arguments)
+                    else:
+                        # The original prefix and inputs survive; the build
+                        # still receives mandatory offline/power options.
+                        command_index = arguments.index("run")
+                        index = actual.index("run")
+                        self.assertEqual(actual[index - command_index:index], arguments[:command_index])
+                        self.assertEqual(actual[-1], ".")
+                        self.assertIn("--offline", actual)
+                        self.assertIn("--power", actual)
 
 
 class ReleaseSelectionTests(unittest.TestCase):
@@ -404,7 +415,7 @@ class UnlockedWrapperTest(unittest.TestCase):
             environment['SCALA_CLI_PURIFIER_SCALA_CLI'] = str(native)
             environment["SCALA_CLI_PURIFIER_AS_SCALA_CLI"] = "1"
             arguments = ["build", "argument with spaces", "--example=a=b"]
-            command = [sys.executable, str(Path(__file__).with_name('scala_cli_purifier.py')), *[], *arguments]
+            command = [sys.executable, "-B", str(Path(__file__).with_name('scala_cli_purifier.py')), *arguments]
             result = subprocess.run(command, cwd=root, env=environment, capture_output=True, text=True)
             self.assertEqual(result.returncode, 23, result.stderr)
             self.assertEqual(json.loads(result.stdout), arguments)
