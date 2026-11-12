@@ -217,10 +217,29 @@ def configure_native_sdk(environment, platform):
     )
 
 
-def common_options(java_home, platform, offline):
+def explicit_java_home(arguments):
+    selected = None
+    options = iter(arguments)
+    for option in options:
+        if option == "--":
+            break
+        if option == "--java-home":
+            selected = next(options, None)
+            if not selected:
+                raise PurifierError("--java-home needs the installed project runtime's path")
+        elif option.startswith("--java-home="):
+            selected = option.split("=", 1)[1]
+            if not selected:
+                raise PurifierError("--java-home needs the installed project runtime's path")
+    return selected
+
+
+def common_options(java_home, platform, offline, arguments=()):
     """The options every scala-cli command of a lock run takes; the Nix
     build passes the same ones (pkgs/build-scala-cli-project/default.nix)."""
-    options = ["--power", "--server=false", "--java-home", java_home]
+    options = ["--power", "--server=false"]
+    if explicit_java_home(arguments) is None:
+        options += ["--java-home", java_home]
     if offline:
         options.append("--offline")
     if platform == "JS":
@@ -252,7 +271,7 @@ def scala_cli_commands(
     # workspace's .scala-build and reuses them, which would skip downloads
     # the Nix build needs; each run gets an empty workspace, as a fresh
     # copy of the project in the sandbox has.
-    common = [*common_options(java_home, platform, offline), "--workspace", str(work / "workspace"), *extra]
+    common = [*common_options(java_home, platform, offline, arguments), "--workspace", str(work / "workspace"), *extra]
     out = work / "out"
     out.mkdir(parents=True, exist_ok=True)
     commands = [[scala_cli, *props, "package", *common, *package_options(platform, out), "-f", *arguments]]
@@ -276,7 +295,7 @@ def editor_session(root, work, java_home, arguments, platform, environment, mirr
     JVM build of scala-cli compiles in its own process there. So the session
     first compiles the main and test scopes on Bloop, which downloads those
     files whichever build of scala-cli runs the lock."""
-    options = common_options(java_home, platform, offline=mirror_options is not None)
+    options = common_options(java_home, platform, offline=mirror_options is not None, arguments=arguments)
     workspace = ["--workspace", str(work / "bsp-workspace"), *extra, *arguments]
     # The Bloop server is a JVM of its own, which takes its temporary
     # directory from these options rather than from the -D options of
@@ -383,7 +402,7 @@ def class_path(root, work, java_home, arguments, platform, test_scope, environme
         env("SCALA_CLI_PURIFIER_SCALA_CLI"),
         *java_properties(work, user_home=user_home),
         "compile",
-        *common_options(java_home, platform, offline=False),
+        *common_options(java_home, platform, offline=False, arguments=arguments),
         "--workspace",
         str(work / "workspace"),
         "--print-class-path",
@@ -422,18 +441,7 @@ def default_java_home(arguments=(), *, locked_arguments=()):
     # Each invocation has its own application-argument boundary. A -- in
     # stored arguments must not hide the current invocation's explicit SDK.
     for group in (locked_arguments, arguments):
-        options = iter(group)
-        for option in options:
-            if option == "--":
-                break
-            if option == "--java-home":
-                selected = next(options, None)
-                if not selected:
-                    raise PurifierError("--java-home needs the installed project runtime's path")
-            elif option.startswith("--java-home="):
-                selected = option.split("=", 1)[1]
-                if not selected:
-                    raise PurifierError("--java-home needs the installed project runtime's path")
+        selected = explicit_java_home(group) or selected
     java = str(Path(selected, "bin", "java")) if selected else shutil.which("java")
     if not java:
         raise PurifierError(
@@ -1041,7 +1049,7 @@ def scala_cli_wrapper(args):
                 *java_properties(work, mirror_options, home_override()),
                 *args[:command_index],
                 command,
-                *common_options(java_home, locked.get("platform", "JVM"), offline=True),
+                *common_options(java_home, locked.get("platform", "JVM"), offline=True, arguments=args),
                 *args[command_index + 1:],
             ]
         else:
