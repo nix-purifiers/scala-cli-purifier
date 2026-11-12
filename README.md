@@ -230,7 +230,7 @@ returns these attributes:
   anything builds.
 
 The builder takes `src`, `lockFile`, `fetchers`, `jdk`, `srcFilter` and
-`localRepositories`; `nix/lib/build-scala-cli-project.nix` documents each
+`localRepositories`; `pkgs/build-scala-cli-project/default.nix` documents each
 one. `fetchers.fetchurl` replaces the fetcher of the locked files, for
 credentials or a company mirror, and takes the arguments the `fetchurl` of
 nixpkgs takes. `buildScalaCliProject.override` replaces what the builder

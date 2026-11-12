@@ -231,7 +231,7 @@ let
       mkdir -p $HOME
       if nix-instantiate --store dummy:// --eval --strict -E "
         let
-          inherit (import ${../nix/lib}/lock.nix { lib = import ${pkgs.path}/lib; }) readLock;
+          inherit (import ${../lib-overlays/default}/lock.nix { lib = import ${pkgs.path}/lib; }) readLock;
           lock = readLock { src = ${src}; lockFile = ${lockFile}; };
         in
         if lock.problems == [ ] then lock else throw (builtins.concatStringsSep \"\n\" lock.problems)
@@ -316,7 +316,7 @@ in
         ];
       }
       ''
-        python3 -B ${./java-major.py} ${../nix/lib/build-scala-cli-project.nix} ${pkgs.path}/lib
+        python3 -B ${./java-major.py} ${../pkgs/build-scala-cli-project/default.nix} ${pkgs.path}/lib
         touch $out
       '';
 
