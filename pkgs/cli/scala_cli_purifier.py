@@ -219,7 +219,7 @@ def configure_native_sdk(environment, platform):
 
 def common_options(java_home, platform, offline):
     """The options every scala-cli command of a lock run takes; the Nix
-    build passes the same ones (nix/lib/build-scala-cli-project.nix)."""
+    build passes the same ones (pkgs/build-scala-cli-project/default.nix)."""
     options = ["--power", "--server=false", "--java-home", java_home]
     if offline:
         options.append("--offline")
@@ -726,7 +726,7 @@ def lock(args, update=None):
         artifacts = coursier_cache.entries(cache, fetched, mirrors) + coursier_cache.inline_entries(
             cache, inlined, mirrors
         )
-        # Nix adds the mirrors of each URL at evaluation (nix/lib/lock.nix),
+        # Nix adds the mirrors of each URL at evaluation (lib-overlays/default/lock.nix),
         # so the lockfile is the same whichever mirror the lock run used.
         for entry in artifacts:
             entry.pop("mirrors", None)

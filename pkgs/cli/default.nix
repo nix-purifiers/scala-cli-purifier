@@ -37,7 +37,9 @@ let
   librarySource = lib.fileset.toSource {
     root = ../..;
     fileset = lib.fileset.unions [
-      ../../nix/lib
+      ../../lib-overlays/default
+      ../build-scala-cli-project
+      ./nix
       ./offline_mirror.py
       ./local_repositories.py
       ./lockfile.py
@@ -111,7 +113,7 @@ stdenvNoCC.mkDerivation {
       --set SCALA_CLI_PURIFIER_SCALA_CLI_VERSION ${scala-cli.version}
       --set SCALA_CLI_PURIFIER_SCALA_CLI_PACKAGE ${scala-cli}
       --set-default SCALA_CLI_PURIFIER_JAVA_HOME ${jdk21_headless.home}
-      --set SCALA_CLI_PURIFIER_LIB ${librarySource}/nix/lib
+      --set SCALA_CLI_PURIFIER_LIB ${librarySource}/pkgs/cli/nix
       --set SCALA_CLI_PURIFIER_NIXPKGS ${path}
       --set SCALA_CLI_PURIFIER_PURIFIER ${purifierSource}
       --set SCALA_CLI_PURIFIER_WRAPPER "$out/bin/scala-cli"

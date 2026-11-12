@@ -16,9 +16,9 @@
   # publishes a project, and the scala-cli wrapper of the development loop.
   cli = callPackage ./cli { };
 
-  # The builder (nix/lib/build-scala-cli-project.nix), with the purifier
+  # The builder (pkgs/build-scala-cli-project/default.nix), with the purifier
   # library of this flake.
-  buildScalaCliProject = callPackage ../nix/lib/build-scala-cli-project.nix {
+  buildScalaCliProject = callPackage ./build-scala-cli-project {
     inherit (lib) purifier;
   };
 }

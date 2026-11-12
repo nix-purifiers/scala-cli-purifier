@@ -10,7 +10,7 @@ The repository is a caisson flake, laid out like sbt-nix-backend.
     `publish` verbs, and the wrapper, which runs when the program is
     started as `scala-cli`.
   - `lockfile.py` checks the checksum and the directives hash of a
-    lockfile, with the same definitions as `nix/lib/lock.nix`.
+    lockfile, with the same definitions as `lib-overlays/default/lock.nix`.
   - `coursier_cache.py` maps coursier cache paths to URLs and turns a cache
     into lockfile entries. The Mill purifier keeps a byte-identical copy of
     it, until the shared nix-purifiers `purifier` library holds it.
@@ -25,10 +25,10 @@ The repository is a caisson flake, laid out like sbt-nix-backend.
     resolvers, records the files its class path reaches into, and stages
     them with their hashes checked, in the offline check and in the Nix
     build.
-- `nix/lib/` is the Nix library. `lock.nix` holds `readLock`, which reads
+- `lib-overlays/default/lock.nix` holds `readLock`, which reads
   a lockfile into the lock in memory of the purifier contract, with its
-  problems; `build-scala-cli-project.nix` is `buildScalaCliProject`;
-  `prefetch.nix` is what `prefetch` builds and `release.nix` what
+  problems. `pkgs/build-scala-cli-project/` owns `buildScalaCliProject`;
+  `pkgs/cli/nix/prefetch.nix` is what `prefetch` builds and `release.nix` what
   `publish` builds. The shared
   [purifier](https://github.com/nix-purifiers/purifier) library checks the
   lock (`checkLock`), picks the entries of a system (`entriesFor`), fetches
