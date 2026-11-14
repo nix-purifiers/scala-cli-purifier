@@ -4,8 +4,8 @@
 # `publish` (see scala_cli_purifier.py), and the scala-cli wrapper of the
 # everyday loop. It runs the scala-cli of this package set, which is the
 # one buildScalaCliProject checks locks against, and runs scala-cli's
-# compiler on the JDK 21 of this set unless SCALA_CLI_PURIFIER_JAVA_HOME
-# names another; it ignores JAVA_HOME. Node.js,
+# compiler on the caller's installed runtime (explicit purifier override,
+# JAVA_HOME, then PATH). The frontend's implementation JVM is separate. Node.js,
 # clang and `which` come first on the PATH, as in the Nix build, for
 # Scala.js tests and for Scala Native, which finds clang with `which`, and
 # openssl makes the offline mirror's certificates.
@@ -18,6 +18,9 @@
   gnupg,
   scala-cli,
   native-sdk ? null,
+  # Explicit project SDK for packaged fixture/reproducibility workflows.
+  # Local adoption has no packaged project runtime by default.
+  project-java ? null,
   jdk21_headless,
   nodejs,
   clang,
@@ -53,7 +56,7 @@ stdenvNoCC.mkDerivation {
   passthru = {
     inherit librarySource;
     initialScalaCli = scala-cli;
-    configuredJava = jdk21_headless;
+    configuredJava = project-java;
     configuredNativeSDK = native-sdk;
   };
 
@@ -112,7 +115,9 @@ stdenvNoCC.mkDerivation {
       --set-default SCALA_CLI_PURIFIER_SCALA_CLI ${lib.getExe' scala-cli "scala-cli"}
       --set SCALA_CLI_PURIFIER_SCALA_CLI_VERSION ${scala-cli.version}
       --set SCALA_CLI_PURIFIER_SCALA_CLI_PACKAGE ${scala-cli}
-      --set-default SCALA_CLI_PURIFIER_JAVA_HOME ${jdk21_headless.home}
+      ${lib.optionalString (project-java != null) ''
+        --set-default SCALA_CLI_PURIFIER_JAVA_HOME ${project-java.home or project-java}
+      ''}
       --set SCALA_CLI_PURIFIER_LIB ${librarySource}/pkgs/cli/nix
       --set SCALA_CLI_PURIFIER_NIXPKGS ${path}
       --set SCALA_CLI_PURIFIER_PURIFIER ${purifierSource}

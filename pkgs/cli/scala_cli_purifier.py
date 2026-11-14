@@ -217,10 +217,29 @@ def configure_native_sdk(environment, platform):
     )
 
 
-def common_options(java_home, platform, offline):
+def explicit_java_home(arguments):
+    selected = None
+    options = iter(arguments)
+    for option in options:
+        if option == "--":
+            break
+        if option == "--java-home":
+            selected = next(options, None)
+            if not selected:
+                raise PurifierError("--java-home needs the installed project runtime's path")
+        elif option.startswith("--java-home="):
+            selected = option.split("=", 1)[1]
+            if not selected:
+                raise PurifierError("--java-home needs the installed project runtime's path")
+    return selected
+
+
+def common_options(java_home, platform, offline, arguments=()):
     """The options every scala-cli command of a lock run takes; the Nix
     build passes the same ones (pkgs/build-scala-cli-project/default.nix)."""
-    options = ["--power", "--server=false", "--java-home", java_home]
+    options = ["--power", "--server=false"]
+    if explicit_java_home(arguments) is None:
+        options += ["--java-home", java_home]
     if offline:
         options.append("--offline")
     if platform == "JS":
@@ -252,7 +271,7 @@ def scala_cli_commands(
     # workspace's .scala-build and reuses them, which would skip downloads
     # the Nix build needs; each run gets an empty workspace, as a fresh
     # copy of the project in the sandbox has.
-    common = [*common_options(java_home, platform, offline), "--workspace", str(work / "workspace"), *extra]
+    common = [*common_options(java_home, platform, offline, arguments), "--workspace", str(work / "workspace"), *extra]
     out = work / "out"
     out.mkdir(parents=True, exist_ok=True)
     commands = [[scala_cli, *props, "package", *common, *package_options(platform, out), "-f", *arguments]]
@@ -276,7 +295,7 @@ def editor_session(root, work, java_home, arguments, platform, environment, mirr
     JVM build of scala-cli compiles in its own process there. So the session
     first compiles the main and test scopes on Bloop, which downloads those
     files whichever build of scala-cli runs the lock."""
-    options = common_options(java_home, platform, offline=mirror_options is not None)
+    options = common_options(java_home, platform, offline=mirror_options is not None, arguments=arguments)
     workspace = ["--workspace", str(work / "bsp-workspace"), *extra, *arguments]
     # The Bloop server is a JVM of its own, which takes its temporary
     # directory from these options rather than from the -D options of
@@ -383,7 +402,7 @@ def class_path(root, work, java_home, arguments, platform, test_scope, environme
         env("SCALA_CLI_PURIFIER_SCALA_CLI"),
         *java_properties(work, user_home=user_home),
         "compile",
-        *common_options(java_home, platform, offline=False),
+        *common_options(java_home, platform, offline=False, arguments=arguments),
         "--workspace",
         str(work / "workspace"),
         "--print-class-path",
@@ -412,11 +431,51 @@ def java_version(java_home):
     raise PurifierError(f"{java_home} has no release file naming its Java version")
 
 
-def default_java_home():
-    # The JDK of the package, which SCALA_CLI_PURIFIER_JAVA_HOME can replace.
-    # JAVA_HOME is left alone: a CI runner sets it to a JDK of its own, and a
-    # relock there would record another Java version than the lockfile.
-    return env("SCALA_CLI_PURIFIER_JAVA_HOME")
+def default_java_home(arguments=(), *, locked_arguments=()):
+    """Discover the caller's project runtime without selecting a Nix SDK.
+
+    The frontend may use an implementation JVM of its own. Its JVM is not
+    the project runtime passed to upstream Scala CLI by common_options.
+    """
+    selected = os.environ.get("SCALA_CLI_PURIFIER_JAVA_HOME") or os.environ.get("JAVA_HOME")
+    # Each invocation has its own application-argument boundary. A -- in
+    # stored arguments must not hide the current invocation's explicit SDK.
+    for group in (locked_arguments, arguments):
+        selected = explicit_java_home(group) or selected
+    java = str(Path(selected, "bin", "java")) if selected else shutil.which("java")
+    if not java:
+        raise PurifierError(
+            "no project Java runtime found; set JAVA_HOME or put your installed java on PATH"
+            " (SCALA_CLI_PURIFIER_JAVA_HOME is an explicit override)"
+        )
+    try:
+        probe = subprocess.run(
+            [java, "-XshowSettings:properties", "-version"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False,
+        )
+    except OSError as error:
+        raise PurifierError(f"cannot execute selected project Java {java}: {error}") from None
+    details = probe.stdout + "\n" + probe.stderr
+    if probe.returncode:
+        raise PurifierError(f"selected project Java {java} failed ({probe.returncode}):\n{details.strip()}")
+    home = re.search(r"^\s*java\.home\s*=\s*(.+?)\s*$", details, re.MULTILINE)
+    if not home:
+        raise PurifierError(f"selected project Java {java} did not report java.home")
+    actual = Path(home.group(1)).resolve()
+    # Java 8 reports its nested JRE as java.home; preserve the installed
+    # JDK root when that is the runtime the caller selected.
+    if actual.name == "jre" and (actual.parent / "release").is_file():
+        actual = actual.parent
+    # A macOS JDK bundle's runtime home is Contents/Home; a home that links
+    # its bin/java there, as Nix's Darwin JDKs do, selects that runtime.
+    if selected and actual not in (
+        Path(selected).resolve(), Path(selected, "bin", "java").resolve().parent.parent
+    ):
+        raise PurifierError(f"selected project Java home {selected} runs a different runtime at {actual}")
+    java_version(actual)
+    if not os.access(actual / "bin" / "keytool", os.X_OK):
+        raise PurifierError(f"selected project Java {actual} has no executable bin/keytool, required by the offline mirror")
+    return str(actual)
 
 
 # --- lock -----------------------------------------------------------------
@@ -633,7 +692,7 @@ def lock(args, update=None):
     name = options["name"] or root.name
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9+._-]*", name):
         raise PurifierError(f"'{name}' is not a usable package name; pass --name")
-    java_home = default_java_home()
+    java_home = default_java_home(arguments)
 
     # macOS's per-user TMPDIR is too long for the build server's sockets
     # under the lock run's directory; /tmp is short enough.
@@ -967,8 +1026,14 @@ def scala_cli_wrapper(args):
     cache = prefetched_cache(lockfile_path, locked)
     environment = dict(os.environ, COURSIER_CACHE=str(cache), COURSIER_MODE="offline")
     configure_native_sdk(environment, locked.get("platform", "JVM"))
+    # Preserve upstream command/global-option semantics. In particular,
+    # unsupported option-first command shapes are delegated unchanged;
+    # runtime discovery still receives every option and its -- boundary.
     command = args[0] if args and not args[0].startswith("-") else None
-    java_home = default_java_home()
+    # Preserve option-first invocation and its -- terminator. The runtime
+    # selector ignores command/input tokens; dropping argv[0] can discard
+    # the caller's --java-home or expose an application argument as an option.
+    java_home = default_java_home(args, locked_arguments=locked["arguments"])
     work = lockfile_path.parent / STATE_DIR
     aliases = offline_mirror.lock_aliases(locked["artifacts"])
     mirror_options, server = start_mirror(cache, work / "mirror", aliases, java_home)
@@ -978,7 +1043,7 @@ def scala_cli_wrapper(args):
                 scala_cli,
                 *java_properties(work, mirror_options, home_override()),
                 command,
-                *common_options(java_home, locked.get("platform", "JVM"), offline=True),
+                *common_options(java_home, locked.get("platform", "JVM"), offline=True, arguments=args),
                 *args[1:],
             ]
         else:

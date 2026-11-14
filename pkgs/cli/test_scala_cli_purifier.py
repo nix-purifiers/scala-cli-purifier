@@ -6,6 +6,7 @@ options, the names of published files, and the checks `prefetch`, the scala-cli 
 import hashlib
 import json
 import os
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -13,6 +14,147 @@ from pathlib import Path
 
 import lockfile
 import scala_cli_purifier as scp
+
+
+class ProjectRuntimeTests(unittest.TestCase):
+    def sdk(self, root, name, version="99.1", status=0):
+        home = root / name
+        (home / "bin").mkdir(parents=True)
+        (home / "release").write_text(f'JAVA_VERSION="{version}"\n')
+        java = home / "bin/java"
+        java.write_text(
+            f"#!{sys.executable}\nimport sys\n"
+            f"print('    java.home = ' + {str(home)!r}, file=sys.stderr)\n"
+            f"print('UnsupportedClassVersionError' if {status} else '    java.version = {version}', file=sys.stderr)\n"
+            f"sys.exit({status})\n"
+        )
+        java.chmod(0o755)
+        (home / "bin/keytool").touch()
+        (home / "bin/keytool").chmod(0o755)
+        return home
+
+    def test_installed_future_version_needs_no_maintainer_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(home))
+                self.assertEqual(scp.java_version(home), "99.1")
+
+    def test_explicit_selection_precedes_ambient_java(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            explicit = self.sdk(Path(tmp), "explicit")
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home),
+                    "SCALA_CLI_PURIFIER_JAVA_HOME": str(explicit)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(explicit))
+                self.assertEqual(scp.default_java_home(["--java-home", str(home)]), str(home))
+                self.assertEqual(scp.default_java_home(["--java-home=" + str(home)]), str(home))
+                self.assertEqual(scp.default_java_home(["--", "--java-home", "/application-argument"]), str(explicit))
+
+    def test_path_launcher_reports_the_actual_runtime_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            launchers = Path(tmp) / "launchers"
+            launchers.mkdir()
+            (launchers / "java").symlink_to(home / "bin/java")
+            with mock.patch.dict(os.environ, {"PATH": str(launchers)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(home))
+
+    def test_home_linking_a_bundle_runtime_selects_that_runtime(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outer = Path(tmp) / "jdk"
+            home = self.sdk(outer / "Library/Java/JavaVirtualMachines/x.jdk/Contents", "Home")
+            for entry in ("bin", "release"):
+                (outer / entry).symlink_to(home / entry)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(outer)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(home))
+
+    def test_home_running_another_runtime_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            other = Path(tmp) / "other"
+            (other / "bin").mkdir(parents=True)
+            (other / "bin/java").write_text(f"#!/bin/sh\nexec {home}/bin/java \"$@\"\n")
+            (other / "bin/java").chmod(0o755)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(other)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "runs a different runtime"):
+                    scp.default_java_home()
+
+    def test_missing_host_does_not_select_a_nix_sdk(self):
+        with mock.patch.dict(os.environ, {"PATH": "/does-not-exist"}, clear=True):
+            with self.assertRaisesRegex(scp.PurifierError, "no project Java runtime"):
+                scp.default_java_home()
+
+    def test_invalid_explicit_host_never_falls_back_to_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            with mock.patch.dict(os.environ, {"PATH": str(home / "bin"),
+                    "JAVA_HOME": "/invalid-host"}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "cannot execute selected project Java"):
+                    scp.default_java_home()
+
+    def test_runtime_execution_error_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host", status=1)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "UnsupportedClassVersionError"):
+                    scp.default_java_home()
+
+    def test_required_mirror_capability_has_a_precise_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            (home / "bin/keytool").unlink()
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "keytool.*offline mirror"):
+                    scp.default_java_home()
+
+    def test_current_sdk_option_is_not_hidden_by_stored_application_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            with mock.patch.dict(os.environ, {"JAVA_HOME": "/invalid"}, clear=True):
+                self.assertEqual(scp.default_java_home(
+                    ["--java-home", str(home)], locked_arguments=[".", "--", "--java-home=/application"]), str(home))
+
+    def test_nonexecutable_keytool_is_a_capability_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            (home / "bin/keytool").chmod(0o644)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(home)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "executable bin/keytool"):
+                    scp.default_java_home()
+
+    def test_locked_wrapper_preserves_option_first_sdk_and_terminator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ambient = self.sdk(root, "ambient")
+            explicit = self.sdk(root, "explicit")
+            frontend = root / "frontend"
+            argv_file = root / "argv.json"
+            frontend.write_text(f"#!{sys.executable}\nimport json,sys\n"
+                                f"open({str(argv_file)!r},'w').write(json.dumps(sys.argv[1:]))\n")
+            frontend.chmod(0o755)
+            environment = {"JAVA_HOME": str(ambient), "SCALA_CLI_PURIFIER_SCALA_CLI": str(frontend)}
+            locked = {"arguments": ["."], "platform": "JVM", "artifacts": []}
+            cases = [(["--java-home", str(explicit), "run", "."], explicit),
+                     (["--java-home=" + str(explicit), "run", "."], explicit),
+                     (["run", ".", "--java-home", str(explicit)], explicit),
+                     (["--", "--java-home=/application"], ambient)]
+            for arguments, expected in cases:
+                with self.subTest(arguments=arguments), mock.patch.dict(os.environ, environment, clear=True), \
+                     mock.patch.object(scp, "find_lockfile", return_value=(root / "lock", root)), \
+                     mock.patch.object(scp, "read_lock", return_value=locked), \
+                     mock.patch.object(scp, "prefetched_cache", return_value=root / "cache"), \
+                     mock.patch.object(scp, "start_mirror", return_value=([], mock.Mock())) as mirror:
+                    self.assertEqual(scp.scala_cli_wrapper(arguments), 0)
+                    self.assertEqual(mirror.call_args.args[-1], str(expected))
+                    actual = json.loads(argv_file.read_text())
+                    if arguments[0] != "run":
+                        self.assertEqual(actual, arguments)
+                    else:
+                        self.assertEqual(actual[-len(arguments[1:]):], arguments[1:])
+                        self.assertEqual(sum(a == "--java-home" or a.startswith("--java-home=") for a in actual), 1)
+                        self.assertIn("--offline", actual)
+                        self.assertIn("--power", actual)
 
 
 class ReleaseSelectionTests(unittest.TestCase):
@@ -290,7 +432,7 @@ class UnlockedWrapperTest(unittest.TestCase):
             environment['SCALA_CLI_PURIFIER_SCALA_CLI'] = str(native)
             environment["SCALA_CLI_PURIFIER_AS_SCALA_CLI"] = "1"
             arguments = ["build", "argument with spaces", "--example=a=b"]
-            command = [sys.executable, str(Path(__file__).with_name('scala_cli_purifier.py')), *[], *arguments]
+            command = [sys.executable, "-B", str(Path(__file__).with_name('scala_cli_purifier.py')), *arguments]
             result = subprocess.run(command, cwd=root, env=environment, capture_output=True, text=True)
             self.assertEqual(result.returncode, 23, result.stderr)
             self.assertEqual(json.loads(result.stdout), arguments)

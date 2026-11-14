@@ -122,11 +122,22 @@ module or for the named ones:
 scala-cli-purifier update com.lihaoyi::sourcecode
 ```
 
-The commands configure the package's JDK 21 for the project, which
-`SCALA_CLI_PURIFIER_JAVA_HOME` can replace; `JAVA_HOME` does not choose that
-default. Explicit Scala CLI options keep their upstream precedence.
-The lock records the configured Java version, and the Nix build selects
-the headless JDK of that major version from the pinned package set.
+Local `lock`, offline development and editor work use the installed project
+runtime: an explicit Scala CLI `--java-home`, then
+`SCALA_CLI_PURIFIER_JAVA_HOME`, `JAVA_HOME`, or `java` on `PATH`. The runtime
+must execute and provide the `keytool` used by the offline dependency mirror.
+There is no runtime version allowlist or fallback to a packaged JDK when
+the selected runtime is absent or invalid. `prefetch` realizes the locked
+dependency files; it does not select or build a project runtime. The default
+local CLI also does not require the optional source-built Native SDK.
+The frontend may run on a separate implementation JVM; that JVM does not
+choose the project's runtime.
+
+The lock records the selected Java installation's version. A full sandboxed
+Nix build, including `publish`, separately selects an immutable SDK: by
+default the headless JDK of that major from the pinned package set, or an
+explicit `jdk` supplied to the builder. A host-only installation does not
+prevent local adoption and is not silently imported into a sandboxed build.
 Different systems can provide different Java patches and vendors; execution
 receipts distinguish the configured JDK from an observed compiler process.
 

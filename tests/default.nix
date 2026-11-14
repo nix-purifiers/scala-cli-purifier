@@ -14,9 +14,9 @@
   # library as lib.purifier.
   flakeLib,
   # The scala-cli-purifier command, whose build runs its unit tests.
-  cli,
+  localCli,
   # Raw initial frontend used by this test scope's executable receipt.
-  scala-cli ? cli.initialScalaCli,
+  scala-cli ? localCli.initialScalaCli,
 }:
 let
   inherit (pkgs) lib;
@@ -26,6 +26,12 @@ let
   # locked with tests/relock-fixtures.sh.
   withOverlay = pkgs.extend overlay;
   build = withOverlay.scala-cli-purifier.buildScalaCliProject;
+  # These locked fixtures intentionally choose a packaged SDK. This is
+  # distinct from the default local-adoption command's host runtime.
+  cli = localCli.override {
+    project-java = pkgs.jdk21_headless;
+    native-sdk = withOverlay.scala-cli-purifier.native-sdk;
+  };
 
   # A Scala 3 project with a dependency and a munit suite, locked with
   # --test.
@@ -333,6 +339,8 @@ in
   jvm-projection = library.projections.maven;
 
   inherit cli;
+  fixture-cli = cli;
+  local-cli = localCli;
 
   toolchain-receipt =
     assert toString pkgs.jdk21_headless == toString pkgs.javaPackages.compiler.openjdk21.headless;

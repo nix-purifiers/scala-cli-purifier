@@ -14,7 +14,8 @@
 # the repository root.
 set -euo pipefail
 root=$PWD
-cli=$(nix build --no-link --print-out-paths '.#cli')/bin/scala-cli-purifier
+system=$(nix eval --impure --raw --expr builtins.currentSystem)
+cli=$(nix build --no-link --print-out-paths ".#checks.$system.fixture-cli")/bin/scala-cli-purifier
 # The physical path: Nix refuses a path with a symlink in it, such as
 # macOS's /var, which mktemp's directory is under.
 work=$(mktemp -d)
