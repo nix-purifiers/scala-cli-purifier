@@ -466,7 +466,11 @@ def default_java_home(arguments=(), *, locked_arguments=()):
     # JDK root when that is the runtime the caller selected.
     if actual.name == "jre" and (actual.parent / "release").is_file():
         actual = actual.parent
-    if selected and Path(selected).resolve() != actual:
+    # A macOS JDK bundle's runtime home is Contents/Home; a home that links
+    # its bin/java there, as Nix's Darwin JDKs do, selects that runtime.
+    if selected and actual not in (
+        Path(selected).resolve(), Path(selected, "bin", "java").resolve().parent.parent
+    ):
         raise PurifierError(f"selected project Java home {selected} runs a different runtime at {actual}")
     java_version(actual)
     if not os.access(actual / "bin" / "keytool", os.X_OK):

@@ -60,6 +60,26 @@ class ProjectRuntimeTests(unittest.TestCase):
             with mock.patch.dict(os.environ, {"PATH": str(launchers)}, clear=True):
                 self.assertEqual(scp.default_java_home(), str(home))
 
+    def test_home_linking_a_bundle_runtime_selects_that_runtime(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outer = Path(tmp) / "jdk"
+            home = self.sdk(outer / "Library/Java/JavaVirtualMachines/x.jdk/Contents", "Home")
+            for entry in ("bin", "release"):
+                (outer / entry).symlink_to(home / entry)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(outer)}, clear=True):
+                self.assertEqual(scp.default_java_home(), str(home))
+
+    def test_home_running_another_runtime_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.sdk(Path(tmp), "host")
+            other = Path(tmp) / "other"
+            (other / "bin").mkdir(parents=True)
+            (other / "bin/java").write_text(f"#!/bin/sh\nexec {home}/bin/java \"$@\"\n")
+            (other / "bin/java").chmod(0o755)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(other)}, clear=True):
+                with self.assertRaisesRegex(scp.PurifierError, "runs a different runtime"):
+                    scp.default_java_home()
+
     def test_missing_host_does_not_select_a_nix_sdk(self):
         with mock.patch.dict(os.environ, {"PATH": "/does-not-exist"}, clear=True):
             with self.assertRaisesRegex(scp.PurifierError, "no project Java runtime"):
