@@ -76,7 +76,7 @@ let
     original
     // {
       directivesHash =
-        (import ../nix/lib/lock.nix { inherit (pkgs) lib; }).directivesHash src
+        (import ../lib-overlays/default/lock.nix { inherit (pkgs) lib; }).directivesHash src
           original.arguments;
     }
   ) [ "checksum" ];

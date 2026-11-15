@@ -26,7 +26,7 @@ let
   pkgs = import nixpkgs { };
   inherit (pkgs) lib;
   purifier = import purifierSource { inherit lib; };
-  inherit (import ./lock.nix { inherit lib; }) readLock;
+  inherit (import ../../../lib-overlays/default/lock.nix { inherit lib; }) readLock;
   lock = readLock {
     src = /. + src;
     lockFile = /. + lockFile;

@@ -20,7 +20,7 @@
 }:
 let
   pkgs = import nixpkgs { };
-  buildScalaCliProject = pkgs.callPackage ./build-scala-cli-project.nix {
+  buildScalaCliProject = pkgs.callPackage ../../build-scala-cli-project {
     purifier = import purifierSource { inherit (pkgs) lib; };
     native-sdk = if nativeSdkPath == null then null else builtins.storePath nativeSdkPath;
     # The command already depends on this realized package. Preserve its

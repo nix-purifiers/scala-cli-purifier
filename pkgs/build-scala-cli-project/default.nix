@@ -94,7 +94,7 @@
   localRepositories ? { },
 }:
 let
-  lockLib = import ./lock.nix { inherit lib; };
+  lockLib = import ../../lib-overlays/default/lock.nix { inherit lib; };
   # The lock in memory, which checkLock of the purifier library accepts
   # only when the lockfile is usable for `src`; it fails evaluation with the
   # problems otherwise, each naming the command that fixes it.

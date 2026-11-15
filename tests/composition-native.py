@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 profile = os.environ.get("SCALA_CLI_TIER2_PROFILE", "native")
 if profile not in ("native", "jvm"):
     raise RuntimeError("profile must be native or jvm")
-cli_attribute = "cli-jvm" if profile == "jvm" else "default"
+cli_attribute = "jvm-profile.fixture-cli" if profile == "jvm" else "fixture-cli"
 check_prefix = "jvm-profile." if profile == "jvm" else ""
 os.environ["NIX_CONFIG"] = os.environ.get("NIX_CONFIG", "") + "\nsandbox = true\nmax-jobs = 2\ncores = 2\neval-cache = false\n"
 results = Path(os.environ["SCALA_CLI_COMPOSITION_RESULTS"]).resolve() if os.environ.get("SCALA_CLI_COMPOSITION_RESULTS") else None
@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix="purifier-native-composition-") as tempo
         '--out-link', str(temporary / 'tools'), '--expr', expression], text=True,
         env=dict(os.environ, COMPOSITION_FLAKE=snapshot)).strip())
     package = subprocess.check_output(
-        ['nix', 'build', 'path:' + snapshot + '#' + cli_attribute, '--print-out-paths',
+        ['nix', 'build', 'path:' + snapshot + '#checks.' + system + '.' + cli_attribute, '--print-out-paths',
          '--out-link', str(temporary / 'cli')], text=True).strip().splitlines()[-1]
     cli = Path(package) / 'bin/scala-cli-purifier'
     receipt["commandPackage"] = {"output":package,

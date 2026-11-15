@@ -14,11 +14,14 @@
 
   # The scala-cli-purifier command, which locks, updates, prefetches and
   # publishes a project, and the scala-cli wrapper of the development loop.
-  cli = callPackage ./cli { };
+  # Local adoption resolves the project's ordinary upstream toolchain.
+  # A source-built backend belongs to pure builds, or an explicit CLI
+  # override, rather than the default capture/development closure.
+  cli = callPackage ./cli { native-sdk = null; };
 
-  # The builder (nix/lib/build-scala-cli-project.nix), with the purifier
+  # The builder (pkgs/build-scala-cli-project/default.nix), with the purifier
   # library of this flake.
-  buildScalaCliProject = callPackage ../nix/lib/build-scala-cli-project.nix {
+  buildScalaCliProject = callPackage ./build-scala-cli-project {
     inherit (lib) purifier;
   };
 }

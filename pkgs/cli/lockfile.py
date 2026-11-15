@@ -13,7 +13,7 @@ A lockfile carries two hashes besides its entries:
                    matches it.
 
 The commands check both before they use a lockfile; Nix checks both at
-evaluation (nix/lib/lock.nix).
+evaluation (lib-overlays/default/lock.nix).
 """
 
 import hashlib
@@ -73,7 +73,7 @@ def directives_hash(root, arguments):
     """The hash of the `//> using` directives of the project's sources: the
     sha256 of the canonical JSON list of [file, [directive, ...]] for each
     source file that has directives. Nix computes the same hash at
-    evaluation (nix/lib/lock.nix), so the two split lines and strip blanks
+    evaluation (lib-overlays/default/lock.nix), so the two split lines and strip blanks
     the same way."""
     root = Path(root)
     found = []

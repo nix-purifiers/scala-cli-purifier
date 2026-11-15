@@ -20,10 +20,10 @@ toolchain=$(nix build --no-link --print-out-paths ".#checks.$system.toolchain-re
   --option sandbox true --option max-jobs 2 --option cores 2 --option eval-cache false)
 native_sdk=$(nix eval --offline --impure --raw --expr '
   let f = builtins.getFlake (toString ./.);
-      sdk = f.packages.${builtins.currentSystem}.cli.configuredNativeSDK;
+      sdk = f.checks.${builtins.currentSystem}.fixture-cli.configuredNativeSDK;
   in if sdk == null then "" else toString sdk')
 if [ -n "$native_sdk" ] && [ -n "${NATIVE_SDK_DIAGNOSTIC_DIR:-}" ]; then
-  nix build --no-link ".#cli.configuredNativeSDK" \
+  nix build --no-link ".#checks.$system.fixture-cli.configuredNativeSDK" \
     --option sandbox true --option max-jobs 2 --option cores 2 --option eval-cache false
   python3 tests/native-sdk-snapshot.py "$native_sdk" "$NATIVE_SDK_DIAGNOSTIC_DIR"
 fi
